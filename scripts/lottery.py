@@ -20,10 +20,12 @@ class Lottery(object):
     def main(self):
         print(self.pd)
         cumulative_probability = 0.0
-        awards_distribution = {}
-        for award, probability in self.pd.items():
+        prizes_distribution = {}
+        for prize, probability in self.pd.items():
+            if prize[0] == "#":
+                continue
             cumulative_probability += float(probability)
-            awards_distribution[award] = cumulative_probability
+            prizes_distribution[prize] = cumulative_probability
         if cumulative_probability != 1:
             raise ValueError(
                 "cumulative probability is %f, but 1.0 required"
@@ -36,9 +38,9 @@ class Lottery(object):
                 self.paid = 0
             else:
                 r = random.random()
-            for award, award_cumulative_probability in awards_distribution.items():
-                if r < award_cumulative_probability:
-                    print(r, award)
+            for prize, prize_cumulative_probability in prizes_distribution.items():
+                if r < prize_cumulative_probability:
+                    print(r, prize)
                     break
         self.pd["max"] = self.max
         self.pd["paid"] = self.paid
