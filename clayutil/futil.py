@@ -26,9 +26,9 @@ class Properties(object):
     def parse(self):
         with open(self.__filename, "r", encoding=self.__encoding) as pf:
             for i, line in enumerate(pf):
-                m = re.match(r"^(.+)=(.+)\n$", line)
+                m = re.match(r"^([^#]+)=(.+)\n$", line)
                 if m is None:
-                    self.properties[i] = line
+                    self.properties["#%i" % i] = line
                 else:
                     v = m.group(2)
                     if v.isdigit():
@@ -42,7 +42,7 @@ class Properties(object):
     def override(self):
         with open(self.__filename, "w", encoding=self.__encoding) as pf:
             for key, value in self.properties.items():
-                if type(key) is int:
+                if key[0] == "#" and type(key[1:]) is int:
                     pf.write("%s" % value)
                 else:
                     if str(value) == "True":
