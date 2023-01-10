@@ -42,7 +42,7 @@ class Properties(object):
     def override(self):
         with open(self.__filename, "w", encoding=self.__encoding) as pf:
             for key, value in self.properties.items():
-                if key[0] == "#" and type(key[1:]) is int:
+                if key[0] == "#" and key[1:].isdigit():
                     pf.write("%s" % value)
                 else:
                     if str(value) == "True":
