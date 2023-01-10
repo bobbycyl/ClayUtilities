@@ -26,7 +26,7 @@ Generate a pair of RSA keys.
 
 ### lottery.py
 
-A simple lottery emulator.
+a simple lottery emulator
 
 Here is an example properties file for this script.
 
