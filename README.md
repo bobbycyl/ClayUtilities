@@ -14,7 +14,13 @@ The `clayutil` package which contains a series of simple utilities is required b
    $ export PYTHONPATH=$PYTHONPATH:.
    ```
 
-2. Now you can execute the scripts by running `python3 scripts/<filename>.py`.
+2. Install the requirements.
+   
+   ```shell
+   $ python3 -m pip install -r requirements.txt
+   ```
+
+3. Now you can execute the scripts by running `python3 scripts/<filename>.py`.
 
 ## Scripts
 
