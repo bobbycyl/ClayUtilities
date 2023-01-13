@@ -2,13 +2,19 @@
 
 ## Introduction
 
-The `clayutil` package which contains a series of simple utilities is required by the `scripts` and my many other projects. I hope this project will make your work a little bit easier.
+The `clayutil` package which contains a series of simple utilities is required by the `scripts` and my many other projects. I hope this project will make your work a little bit easier or inspire you to come up with a few on your own.
 
 ## Usage
 
-1. Make sure the `clayutil` package is included in the `PYTHONPATH` (can be ignored if you open this project with an IDE)
+1. Clone the repository and make sure the `clayutil` package is included in the `PYTHONPATH`.
+   
+   ```shell
+   $ git clone https://github.com/bobbycyl/ClayUtilities.git
+   $ cd ClayUtilities/
+   $ export PYTHONPATH=$PYTHONPATH:.
+   ```
 
-2. Now you can write your scripts based on the `clayutil` package or execute the scripts directly in the `scripts` folder.
+2. Now you can execute the scripts by running `python3 scripts/<filename>.py`.
 
 ## Scripts
 
@@ -47,5 +53,3 @@ paid=0
 2. For each draw, `paid` increases 1.
 
 3. When `paid` hits `max`, `paid` returns to 0, and the first prize must be drawn.
-
-
