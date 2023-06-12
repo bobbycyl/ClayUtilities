@@ -17,12 +17,14 @@ class AnyField(object):
 
     Attributes:
         param: 命令形参名
+        default_value: 若为可选参数，则指定默认值
     """
 
-    __slots__ = ("param",)
+    __slots__ = ("param", "default_value")
 
-    def __init__(self, param: str):
+    def __init__(self, param: str, default_value=None):
         self.param = param
+        self.default_value = default_value
 
     def convert_type(self, arg):
         """Convert the datetype of 'arg' to which the class defines
@@ -33,7 +35,10 @@ class AnyField(object):
         return arg
 
     def __str__(self):
-        return "<%s: %s>" % (self.__class__.__name__, self.param)
+        if self.default_value is not None:
+            return "[%s: %s]" % (self.__class__.__name__, self.param)
+        else:
+            return "<%s: %s>" % (self.__class__.__name__, self.param)
 
     __repr__ = __str__
 
@@ -86,7 +91,7 @@ class CommandParser(object):
     def __init__(self):
         self.__cmds: Dict[str, List[AnyField]] = {}  # {root_cmd: params}
 
-    def add_command(self, root_cmd: str, params: List[AnyField]):
+    def add_command(self, root_cmd: str, *params: AnyField):
         """添加一条命令模板
 
         根命令不可重复，命令形参列表需要使用静态命令参数数据类型
@@ -96,7 +101,14 @@ class CommandParser(object):
         """
         if root_cmd in self.__cmds:
             raise ValueError("command '%s' already exists" % root_cmd)
-        self.__cmds[root_cmd] = params
+        optional_counter = 0
+        for param in params:
+            if param.default_value is not None:
+                optional_counter += 1
+            else:
+                if optional_counter > 0:
+                    raise ArgTypeError("optional parameter follows required parameter")
+        self.__cmds[root_cmd] = list(params)
 
     def parse_command(self, cmd: str) -> Dict[str, Any]:
         """解析命令
@@ -116,15 +128,31 @@ class CommandParser(object):
             raise ValueError("unknown command '%s'" % recognized_root_cmd)
 
         args = split_cmd[1:]
+        initial_args_length = len(args)
         params = self.__cmds[recognized_root_cmd]
-        if len(args) != len(params):
+        params_length = len(params)
+
+        if initial_args_length > params_length:
             raise ValueError(
-                "command syntax error: %s %s"
+                "too many arguments given: %s %s"
                 % (
                     recognized_root_cmd,
                     " ".join([str(param) for param in params]),
                 )
             )
+
+        # 填充可选参数
+        for i in range(params_length - initial_args_length):
+            cur_param = params[initial_args_length + i]
+            if cur_param.default_value is None:
+                raise ValueError(
+                    "too few arguments given: %s %s"
+                    % (
+                        recognized_root_cmd,
+                        " ".join([str(param) for param in params]),
+                    )
+                )
+            args.append(cur_param.default_value)
 
         return_dict = {"root_cmd": recognized_root_cmd}
         for i in range(len(args)):
