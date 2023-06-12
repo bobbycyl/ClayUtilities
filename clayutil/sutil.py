@@ -1,7 +1,7 @@
 __all__ = ("SecureSession", "export_rsa_key")
 
-from Crypto.Cipher import AES
-from Crypto.PublicKey import RSA
+from Cryptodome.Cipher import AES
+from Cryptodome.PublicKey import RSA
 
 
 class SecureSession(object):
