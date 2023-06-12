@@ -2,12 +2,13 @@
 
 ## Introduction
 
-The `clayutil` package which contains a series of simple utilities is required by the `scripts` and my many other projects. I hope this project will make your work a little bit easier or inspire you to come up with a few on your own.
+The `clayutil` package which contains a series of simple utilities is required by the `scripts` and my many other
+projects. I hope this project will make your work a little bit easier or inspire you to come up with a few on your own.
 
 ## Usage
 
 1. Clone the repository and make sure the `clayutil` package is included in the `PYTHONPATH`.
-   
+
    ```shell
    $ git clone https://github.com/bobbycyl/ClayUtilities.git
    $ cd ClayUtilities/
@@ -15,7 +16,7 @@ The `clayutil` package which contains a series of simple utilities is required b
    ```
 
 2. Install the requirements.
-   
+
    ```shell
    $ python3 -m pip install -r requirements.txt
    ```
