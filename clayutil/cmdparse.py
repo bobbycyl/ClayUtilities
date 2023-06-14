@@ -119,7 +119,7 @@ class CommandParser(object):
     def __init__(self):
         self.cmds = {}
 
-    def add_command(self, cmd):
+    def add_command(self, cmd: Command):
         """添加一条命令"""
         root_cmd = cmd.root
         if root_cmd in self.cmds:
