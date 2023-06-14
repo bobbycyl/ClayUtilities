@@ -83,32 +83,50 @@ def convert_arg_type(param_type: AnyField, arg):
     return param_type.convert_type(arg)
 
 
+class Command(object):
+    def __init__(
+        self, root: str, params: List[AnyField], description: str = "", **kwargs
+    ):
+        optional_counter = 0
+        for param in params:
+            if param.default_value is None:
+                if optional_counter > 0:
+                    raise ArgTypeError(
+                        f"required parameter {param} follows optional parameter"
+                    )
+            else:
+                optional_counter += 1
+
+        self.__root = root
+        self.params = params
+        self.description = description
+        self.other_attr = kwargs
+
+    @property
+    def root(self):
+        return self.__root
+
+    def __str__(self):
+        return "%s %s" % (self.root, " ".join([str(param) for param in self.params]))
+
+    __repr__ = __str__
+
+
 class CommandParser(object):
     """拥有静态类型的命令解析工具"""
 
     pattern = re.compile(r"(?<!\\) ")  # 转义规则
 
     def __init__(self):
-        self.__cmds: Dict[str, List[AnyField]] = {}  # {root_cmd: params}
+        self.__cmds: Dict[str, Command] = {}  # {root_cmd: Command}
 
-    def add_command(self, root_cmd: str, *params: AnyField):
-        """添加一条命令模板
-
-        根命令不可重复，命令形参列表需要使用静态命令参数数据类型
-
-        :param root_cmd: 根命令
-        :param params: 命令形参列表
-        """
+    def add_command(self, cmd):
+        """添加一条命令"""
+        root_cmd = cmd.root
         if root_cmd in self.__cmds:
             raise ValueError("command '%s' already exists" % root_cmd)
-        optional_counter = 0
-        for param in params:
-            if param.default_value is not None:
-                optional_counter += 1
-            else:
-                if optional_counter > 0:
-                    raise ArgTypeError("optional parameter follows required parameter")
-        self.__cmds[root_cmd] = list(params)
+
+        self.__cmds[root_cmd] = cmd
 
     def parse_command(self, cmd: str) -> Dict[str, Any]:
         """解析命令
@@ -129,29 +147,18 @@ class CommandParser(object):
 
         args = split_cmd[1:]
         initial_args_length = len(args)
-        params = self.__cmds[recognized_root_cmd]
+        recognized_cmd = self.__cmds[recognized_root_cmd]
+        params = recognized_cmd.params
         params_length = len(params)
 
         if initial_args_length > params_length:
-            raise ValueError(
-                "too many arguments given: %s %s"
-                % (
-                    recognized_root_cmd,
-                    " ".join([str(param) for param in params]),
-                )
-            )
+            raise ValueError(f"too many arguments given: {recognized_cmd}")
 
         # 填充可选参数
         for i in range(params_length - initial_args_length):
             cur_param = params[initial_args_length + i]
             if cur_param.default_value is None:
-                raise ValueError(
-                    "too few arguments given: %s %s"
-                    % (
-                        recognized_root_cmd,
-                        " ".join([str(param) for param in params]),
-                    )
-                )
+                raise ValueError(f"too few arguments given: {recognized_cmd}")
             args.append(cur_param.default_value)
 
         return_dict = {"root_cmd": recognized_root_cmd}
