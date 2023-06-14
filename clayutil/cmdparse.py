@@ -114,16 +114,17 @@ class CommandParser(object):
 
     pattern = re.compile(r"(?<!\\) ")  # 转义规则
 
+    cmds: Dict[str, Command]  # {root_cmd: Command}
+
     def __init__(self):
-        self.__cmds: Dict[str, Command] = {}  # {root_cmd: Command}
+        self.cmds = {}
 
     def add_command(self, cmd):
         """添加一条命令"""
         root_cmd = cmd.root
-        if root_cmd in self.__cmds:
+        if root_cmd in self.cmds:
             raise ValueError("command '%s' already exists" % root_cmd)
-
-        self.__cmds[root_cmd] = cmd
+        self.cmds[root_cmd] = cmd
 
     def parse_command(self, cmd: str) -> Dict[str, Any]:
         """解析命令
@@ -139,12 +140,12 @@ class CommandParser(object):
         split_cmd = [x.replace(r"\ ", " ") for x in self.pattern.split(cmd.strip())]
         recognized_root_cmd = str(split_cmd[0])
 
-        if recognized_root_cmd not in self.__cmds:
+        if recognized_root_cmd not in self.cmds:
             raise ValueError("unknown command '%s'" % recognized_root_cmd)
 
         args = split_cmd[1:]
         initial_args_length = len(args)
-        recognized_cmd = self.__cmds[recognized_root_cmd]
+        recognized_cmd = self.cmds[recognized_root_cmd]
         params = recognized_cmd.params
         params_length = len(params)
 
@@ -163,8 +164,5 @@ class CommandParser(object):
             return_dict[params[i].param] = convert_arg_type(params[i], args[i])
         return return_dict
 
-    def all(self):
-        return self.__cmds.keys()
-
     def __getitem__(self, item):
-        return self.__cmds[item]
+        return self.cmds[item]
