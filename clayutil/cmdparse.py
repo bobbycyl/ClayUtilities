@@ -84,9 +84,7 @@ def convert_arg_type(param_type: AnyField, arg):
 
 
 class Command(object):
-    def __init__(
-        self, root: str, params: List[AnyField], description: str = "", **kwargs
-    ):
+    def __init__(self, root: str, params: List[AnyField], description: str = ""):
         optional_counter = 0
         for param in params:
             if param.default_value is None:
@@ -100,7 +98,6 @@ class Command(object):
         self.__root = root
         self.params = params
         self.description = description
-        self.other_attr = kwargs
 
     @property
     def root(self):
