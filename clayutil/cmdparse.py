@@ -158,3 +158,9 @@ class CommandParser(object):
         for i in range(len(args)):
             return_dict[params[i].param] = convert_arg_type(params[i], args[i])
         return return_dict
+
+    def all(self):
+        return self.__cmds.keys()
+
+    def __getitem__(self, item):
+        return self.__cmds[item]
