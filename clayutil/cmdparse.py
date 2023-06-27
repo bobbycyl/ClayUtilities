@@ -169,3 +169,60 @@ class CommandParser(object):
 
     def __getitem__(self, item):
         return self.cmds[item]
+
+
+if __name__ == '__main__':
+    # usage example
+    cmd_help = Command("help", [StringField("command", "")], "show help")
+    cmd_add = Command("add", [IntegerField("a"), IntegerField("b")], "add two numbers")
+    cmd_exit = Command("exit", [], "exit")
+    cmdparser = CommandParser()
+    cmdparser.add_command(cmd_help)
+    cmdparser.add_command(cmd_add)
+    cmdparser.add_command(cmd_exit)
+    while True:
+        try:
+            res = cmdparser.parse_command(input("> "))
+            root_cmd = res["root_cmd"]
+            if root_cmd == "help":
+                if res["command"] == "":
+                    print("available commands:")
+                    for cmd in cmdparser.cmds.values():
+                        print(cmd.root)
+                else:
+                    print(cmdparser[res["command"]].description)
+                    print(cmdparser[res["command"]])
+            elif root_cmd == "add":
+                print(res["a"] + res["b"])
+            elif root_cmd == "exit":
+                break
+        except ArgTypeError as e:
+            print(e)
+        except KeyError as e:
+            print("help: unknown command %s" % e)
+        except ValueError as e:
+            print(e)
+    # > hi
+    # unknown command 'hi'
+    # > help hi
+    # help: unknown command 'hi'
+    # > help
+    # available commands:
+    # help
+    # add
+    # exit
+    # > help help
+    # show help
+    # help [StringField: command]
+    # > help add
+    # add two numbers
+    # add <IntegerField: a> <IntegerField: b>
+    # > add 1 2
+    # 3
+    # > add a b
+    # Argument 'a' is not an Integer.
+    # > add 1
+    # too few arguments given: add <IntegerField: a> <IntegerField: b>
+    # > exit 1
+    # too many arguments given: exit
+    # > exit
