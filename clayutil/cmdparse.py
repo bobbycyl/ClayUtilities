@@ -35,10 +35,10 @@ class AnyField(object):
         return arg
 
     def __str__(self):
-        if self.default_value is not None:
-            return "[%s: %s]" % (self.__class__.__name__, self.param)
-        else:
+        if self.default_value is None:
             return "<%s: %s>" % (self.__class__.__name__, self.param)
+        else:
+            return "[%s: %s]" % (self.__class__.__name__, self.param)
 
     __repr__ = __str__
 
