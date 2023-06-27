@@ -27,7 +27,7 @@ class AnyField(object):
         self.default_value = default_value
 
     def convert_type(self, arg):
-        """Convert the datetype of 'arg' to which the class defines
+        """Convert the datetype of 'arg' to which the class defines.
 
         May be overridden.
 
