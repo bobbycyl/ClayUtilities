@@ -140,7 +140,7 @@ class CommandParser(object):
         :param cmd: 传入的实际命令
         :return: 实参字典
         """
-        split_cmd = [x.replace(r"\ ", " ") for x in self.pattern.split(cmd.strip())]
+        split_cmd = [x.replace(r"\ ", " ") for x in self.pattern.split(cmd.rstrip())]
         recognized_root_cmd = str(split_cmd[0])
 
         if recognized_root_cmd not in self.cmds:
