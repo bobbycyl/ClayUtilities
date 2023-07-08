@@ -12,7 +12,8 @@ __all__ = (
 
 import json
 import re
-from typing import Any, Dict, List
+from collections import namedtuple
+from typing import Dict, List, Tuple
 
 
 class AnyField(object):
@@ -129,7 +130,7 @@ class CommandParser(object):
             raise ValueError("command '%s' already exists" % root_cmd)
         self.cmds[root_cmd] = cmd
 
-    def parse_command(self, cmd: str) -> Dict[str, Any]:
+    def parse_command(self, cmd: str) -> Tuple[str, tuple]:
         """解析命令
 
         解析过程如下：
@@ -138,7 +139,7 @@ class CommandParser(object):
         3. 检查命令实参类型是否正确
 
         :param cmd: 传入的实际命令
-        :return: 实参字典
+        :return: (root_cmd, args)
         """
         split_cmd = [x.replace(r"\ ", " ") for x in self.pattern.split(cmd.rstrip())]
         recognized_root_cmd = str(split_cmd[0])
@@ -162,67 +163,81 @@ class CommandParser(object):
                 raise ValueError(f"too few arguments given: {recognized_cmd}")
             args.append(cur_param.default_value)
 
-        return_dict = {"root_cmd": recognized_root_cmd}
-        for i in range(len(args)):
-            return_dict[params[i].param] = convert_arg_type(params[i], args[i])
-        return return_dict
+        Args = namedtuple("Args", [param.param for param in params])
+        converted_args = [
+            convert_arg_type(params[i], args[i]) for i in range(params_length)
+        ]
+        return recognized_root_cmd, Args._make(converted_args)
 
     def __getitem__(self, item):
         return self.cmds[item]
 
 
-if __name__ == '__main__':
-    # usage example
-    cmd_help = Command("help", [StringField("command", "")], "show help")
-    cmd_add = Command("add", [IntegerField("a"), IntegerField("b")], "add two numbers")
-    cmd_exit = Command("exit", [], "exit")
-    cmdparser = CommandParser()
-    cmdparser.add_command(cmd_help)
-    cmdparser.add_command(cmd_add)
-    cmdparser.add_command(cmd_exit)
-    while True:
-        try:
-            res = cmdparser.parse_command(input("> "))
-            root_cmd = res["root_cmd"]
-            if root_cmd == "help":
-                if res["command"] == "":
-                    print("available commands:")
-                    for cmd in cmdparser.cmds.values():
-                        print(cmd.root)
-                else:
-                    print(cmdparser[res["command"]].description)
-                    print(cmdparser[res["command"]])
-            elif root_cmd == "add":
-                print(res["a"] + res["b"])
-            elif root_cmd == "exit":
-                break
-        except ArgTypeError as e:
-            print(e)
-        except KeyError as e:
-            print("help: unknown command %s" % e)
-        except ValueError as e:
-            print(e)
-    # > hi
-    # unknown command 'hi'
-    # > help hi
-    # help: unknown command 'hi'
+if __name__ == "__main__":
+
+    class Example(object):
+        example_cmdparser = CommandParser()
+        for cmd in [
+            Command("help", [StringField("command", "")], "show help"),
+            Command("add", [IntegerField("a"), IntegerField("b")], "add two numbers"),
+            Command("exit", [], "exit"),
+        ]:
+            example_cmdparser.add_command(cmd)
+
+        def __init__(self):
+            self.loop = True
+
+        def main(self):
+            while self.loop:
+                try:
+                    print(self.handle_command(input("> ")))
+                except ArgTypeError as e:
+                    print(e)
+                except KeyError as e:
+                    print("help: unknown command %s" % e)
+                except ValueError as e:
+                    print(e)
+
+        def handle_command(self, cmd: str) -> str:
+            root_cmd, args = self.example_cmdparser.parse_command(cmd)
+            return eval("self._handle_command_%s" % root_cmd)(args)
+
+        def _handle_command_help(self, args):
+            if args.command == "":
+                print("available commands:")
+                return str([cmd.root for cmd in self.example_cmdparser.cmds.values()])
+            else:
+                return (
+                    self.example_cmdparser[args.command].description
+                    + "\n"
+                    + str(self.example_cmdparser[args.command])
+                )
+
+        def _handle_command_add(self, args):
+            return args.a.__add__(args.b)
+
+        def _handle_command_exit(self, args):
+            self.loop = False
+            return "exit"
+
+    # create instance
+
+    example = Example()
+    example.main()
+
     # > help
     # available commands:
-    # help
-    # add
-    # exit
-    # > help help
-    # show help
-    # help [StringField: command]
+    # ['help', 'add', 'exit']
     # > help add
     # add two numbers
     # add <IntegerField: a> <IntegerField: b>
     # > add 1 2
     # 3
-    # > add a b
-    # Argument 'a' is not an Integer.
     # > add 1
     # too few arguments given: add <IntegerField: a> <IntegerField: b>
+    # > add 1.1 2
+    # Argument '1.1' is not an Integer.
     # > exit 1
     # too many arguments given: exit
     # > exit
+    # exit
