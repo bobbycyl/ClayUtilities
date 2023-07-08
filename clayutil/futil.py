@@ -16,12 +16,10 @@ class Properties(object):
         self.__filename = filename
         self.__encoding = encoding
         self.properties = OrderedDict()
-        if os.path.exists(filename):
-            self.parse()
-        else:
+        if not os.path.exists(filename):
             with open(filename, "w") as f:
                 f.write("# %s\n" % datetime.ctime(datetime.now()))
-            self.parse()
+        self.parse()
 
     def parse(self):
         with open(self.__filename, "r", encoding=self.__encoding) as pf:
