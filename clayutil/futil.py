@@ -5,6 +5,7 @@ import re
 import shutil
 from collections import OrderedDict
 from datetime import datetime
+from typing import Optional
 
 import requests
 
@@ -15,7 +16,7 @@ class Properties(object):
     def __init__(self, filename, encoding="utf-8"):
         self.__filename = filename
         self.__encoding = encoding
-        self.properties = OrderedDict()
+        self.properties = OrderedDict()  # 键值对内容，按行的顺序存储
         if not os.path.exists(filename):
             with open(filename, "w") as f:
                 f.write("# %s\n" % datetime.ctime(datetime.now()))
@@ -24,9 +25,9 @@ class Properties(object):
     def parse(self):
         with open(self.__filename, "r", encoding=self.__encoding) as pf:
             for i, line in enumerate(pf):
-                m = re.match(r"^([^#]+)=(.+)\n$", line)
+                m = re.match(r"^([^#]+)=(.+)\n$", line)  # 符合“key=value”样式的键值对
                 if m is None:
-                    self.properties["#%i" % i] = line
+                    self.properties["#%i" % i] = line  # 不符合即视为注释
                 else:
                     v = m.group(2)
                     if v.isdigit():
@@ -75,8 +76,8 @@ class GetQueryDownloader(object):
     def start(
         self,
         url: str,
-        filename="",
-        headers=None,
+        filename: str = "",
+        headers: Optional[dict] = None,
     ) -> str:
         """发起Get请求与下载文件
 
