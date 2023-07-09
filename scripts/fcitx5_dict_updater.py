@@ -19,7 +19,7 @@ class Fcitx5DictUpdater(object):
 
     def download_dicts(self):
         d = Downloader(
-            "%s%s" % (os.environ["HOME"], "/.local/share/fcitx5/pinyin/dictionaries/")
+            os.path.join(os.environ["HOME"], ".local/share/fcitx5/pinyin/dictionaries/")
         )
         for dict_name, dict_url in self.dicts.items():
             d.start(dict_url, dict_name)
