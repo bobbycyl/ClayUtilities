@@ -101,7 +101,7 @@ class GetQueryDownloader(object):
         # 对目标文件地址发起Get请求
         r = requests.get(url, headers=headers, stream=True, allow_redirects=True)
         self.__url = r.url
-        self.content_length = int(str(r.headers.get("Content-Length")))
+        self.content_length = int(str(r.headers.get("Content-Length", 0)))
         self.content_type = str(r.headers.get("Content-Type"))
         self.__filename = os.path.join(self.__output_dir, self.__url.split("/")[-1])
 
