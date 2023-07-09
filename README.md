@@ -60,3 +60,7 @@ paid=0
 2. For each draw, `paid` increases 1.
 
 3. When `paid` hits `max`, `paid` returns to 0, and the first prize must be drawn.
+
+## Security
+
+[![Security Status](https://www.murphysec.com/platform3/v31/badge/1678004040208506880.svg)](https://www.murphysec.com/console/report/1678004040170758144/1678004040208506880)
