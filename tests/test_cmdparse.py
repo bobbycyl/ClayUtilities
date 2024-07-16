@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from clayutil.cmdparse import *
@@ -14,12 +16,11 @@ def run(g):
             print(next(g))
         except CommandError:
             raise
-        except ValueError:
-            break
+        except ValueError as e:
+            return str(e)
         except StopIteration as e:
-            print(f"{e.value} done")
-            break
-    print("=" * 100)
+            print("=" * 100)
+            return e.value
 
 
 def test():
@@ -43,13 +44,22 @@ def test():
         0,
         func,
     )
-    cmdparser.register_command(0, cmd_test)
-    run(cmdparser.parse_command("help"))
-    run(cmdparser.parse_command("help test"))
-    run(cmdparser.parse_command('test hi 3 -3 c_a {"a":[0,1],"b":[2,3]}', extra_key1="value1", extra_key2=-1))
-    run(cmdparser.parse_command('test "hello world" 3 3.14 @["c_a","c_c"] {"a": [0, 1], "b": [2, 3]}', extra_key1="value1", extra_key2=-1))
-    run(cmdparser.parse_command('test \'a b c d\' 3 3.14 @{"score":["!=80"],"gender":"f"} {"a": [0, 1], "b": [2, 3]}'))
-    with pytest.raises(CommandError):
+    cmd_add = Command("add", "add command", [IntegerField("arg1"), IntegerField("arg2")], 0, lambda a, b: a + b)
+    cmdparser.register_command(0, cmd_test, cmd_add)
+    assert run(cmdparser.parse_command("help")) == 1
+    assert run(cmdparser.parse_command("help test")) == 1
+    assert run(cmdparser.parse_command('test hi 3 -3 c_a {"a":[0,1],"b":[2,3]}', extra_key1="value1", extra_key2=-1)) == 1
+    assert run(cmdparser.parse_command('test "hello world" 3 3.14 @["c_a","c_c","c_c"] {"a": [0, 1], "b": [2, 3]}', extra_key1="value1", extra_key2=-1)) == 2
+    assert run(cmdparser.parse_command('test hi 3 3.14 @["@{\\"score\\":[\\"=80\\"]}","@{\\"score\\":[\\"<65\\"],\\"gender\\":\\"f\\"}","@{\\"score\\":[\\"<=64\\"],\\"gender\\":\\"m\\"}"]')) == 2
+    assert run(cmdparser.parse_command('test \'a b c d\' 3 3.14 @{"score":["!=80","<90"],"gender":"f"} {"a": [0, 1], "b": [2, 3]}')) == 2
+    assert run(cmdparser.parse_command("help test test2")) == "unknown command 'test test2'"
+    cmdparser.MAX_SIM_EXEC = 1
+    with pytest.raises(CommandError, match=re.escape('failed to parse \'test \\\'a b c d\\\' 3 3.14 @{"score":["!=80"],"gender":"f"} {"a": [0, 1], "b": [2, 3]}\': too many possible simultaneous executions: 3 > 1')):
+        run(cmdparser.parse_command('test \'a b c d\' 3 3.14 @{"score":["!=80"],"gender":"f"} {"a": [0, 1], "b": [2, 3]}'))
+    cmdparser.MAX_SIM_EXEC = 127
+    with pytest.raises(CommandError, match=re.escape('failed to parse \'test hi 3 3.14 @[@{"score":["=80"]},@{"score":["<65"]}]\': \'[@{"score":["=80"]},@{"score":["<65"]}]\' is not a valid selector')):
         run(cmdparser.parse_command('test hi 3 3.14 @[@{"score":["=80"]},@{"score":["<65"]}]'))
+    with pytest.raises(CommandError, match=re.escape("failed to parse 'test hi 3 3.14': command 'test' expected 4 positional argument(s), 3 given")):
         run(cmdparser.parse_command("test hi 3 3.14"))
-        run(cmdparser.parse_command("help test test2"))
+    with pytest.raises(CommandError, match=re.escape("failed to parse 'add 1 2 3': command 'add' expected 2 positional argument(s), 3 given")):
+        run(cmdparser.parse_command("add 1 2 3"))

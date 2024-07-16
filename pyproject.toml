@@ -7,7 +7,7 @@ name = "clayutil"
 version = "0.1"
 dependencies = [
     "requests",
-    "ujson",
+    "orjson",
     "jsonschema",
     "pytest",
 ]

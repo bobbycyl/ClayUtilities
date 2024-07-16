@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from collections import Counter
 
 import jsonschema
-import ujson
+import orjson
 
 __all__ = (
     "ValidationError",
@@ -76,10 +76,8 @@ def validate_type(value, type_, min_value=None, max_value=None, predicate=None):
 
 def validate_and_decode_json_string(value, schema=None):
     try:
-        obj = ujson.decode(value)
-    except ValidationError as e:
-        raise ValidationError(f"expected {value!r} to be a valid JSON string") from e
-    except ujson.JSONDecodeError as e:
+        obj = orjson.loads(value)
+    except orjson.JSONDecodeError as e:
         raise ValidationError(f"expected {value!r} to be a valid JSON string") from e
 
     if schema is not None:

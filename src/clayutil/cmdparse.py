@@ -1,11 +1,11 @@
 import shlex
 from abc import ABC, abstractmethod
 from collections import UserDict
-from collections.abc import Callable, Iterable, Mapping
-from itertools import product
-from typing import Any, Generator, Optional, Union
+from collections.abc import Callable, Collection, Generator, Mapping
+from itertools import chain, product
+from typing import Any, Optional
 
-import ujson
+import orjson
 
 from .validator import Bool, Integer, String, validate_and_decode_json_string
 
@@ -27,9 +27,6 @@ class CommandError(Exception):
     pass
 
 
-MAX_EXECUTING_AT_A_TIME = 65535
-
-
 class Field(ABC):
     __slots__ = ("_param", "_optional")
     param = String(predicate=str.isidentifier)
@@ -40,7 +37,7 @@ class Field(ABC):
         self.optional = optional
 
     @abstractmethod
-    def parse_arg(self, arg: str) -> Iterable:
+    def parse_arg(self, arg: str) -> Collection:
         pass
 
     def __str__(self):
@@ -99,11 +96,12 @@ def parse_conditions(value, conditions: list[str]) -> bool:
                     case _:
                         raise ValueError("invalid operator '%s'" % op)
         except ValueError as e:
-            raise CommandError(f"invalid condition {cond!r}") from e
+            raise ValueError(f"invalid condition {cond!r}") from e
     return all(it)
 
 
 class CustomField(Field):
+    MAX_NEST = 2
     __slots__ = ("_param", "__scope", "_optional")
     __scope: Mapping
 
@@ -111,28 +109,36 @@ class CustomField(Field):
         super().__init__(param, optional)
         self.__scope = scope
 
-    def parse_arg(self, arg: str) -> Union[tuple, filter, Generator]:
+    def parse_arg(self, arg: str, nested: int = 0) -> tuple | set:
         try:
             if arg[0] == "@":  # selector
-                selector = ujson.loads(arg[1:])
-                return self.select(selector)
+                selector = orjson.loads(arg[1:])
+                return self.select(selector, nested)
             else:
                 return (self.__scope[arg],)
-        except ujson.JSONDecodeError as e:
-            raise ValueError(f"{arg!r} is not a valid selector")
+        except orjson.JSONDecodeError as e:
+            raise ValueError(f"{arg[1:]!r} is not a valid selector") from e
         except KeyError as e:
-            raise ValueError(f"{arg!r} outside of the scope of {self.param!r}")
+            raise ValueError(f"{arg!r} outside of the scope {self.param!r}") from e
         except AttributeError as e:
-            raise ValueError(f"{self.param!r} has no attribute {arg!r}")
+            raise ValueError(f"{self.param!r} has no attribute {arg!r}") from e
+        except ValueError:
+            raise
 
-    def select(self, selector):
-        if isinstance(selector, dict):  # {attr: [cond]} or {attr: value}
-            return filter(
-                lambda x: all([parse_conditions(getattr(x, k), v) if isinstance(v, list) else getattr(x, k) == v for k, v in selector.items() if k[0] != "_"]),
-                self.__scope.values(),
+    def select(self, selector, nested: int) -> tuple | set:
+        if nested > self.MAX_NEST:
+            raise ValueError("too many nested selectors")
+        if isinstance(selector, dict):  # &
+            return tuple(
+                filter(
+                    lambda x: all([parse_conditions(getattr(x, k), v) if isinstance(v, list) else getattr(x, k) == v for k, v in selector.items() if k[0] != "_"]),
+                    self.__scope.values(),
+                )
             )
-        elif isinstance(selector, list):  # [value]
-            return (self.parse_arg(arg)[0] for arg in selector)
+        elif isinstance(selector, list):  # |
+            return set(chain.from_iterable(self.parse_arg(arg, nested + 1) for arg in selector))
+        else:
+            raise ValueError(f"{selector!r} is not a valid selector")
 
 
 class Command(object):
@@ -146,9 +152,6 @@ class Command(object):
     def __init__(self, name: str, description: str, params: list[Field], permission: int, func: Callable):
         """
         Create a command
-
-        JSONStringField is recommended to put at the end of the params
-        due to the automatic merging mechanism of the parsing process.
 
         :param name: command name, should be a valid identifier
         :param description: command description
@@ -182,6 +185,7 @@ class Command(object):
 
 
 class CommandParser(UserDict):
+    MAX_SIM_EXEC = 127
     data: dict[str, Command]
 
     def __init__(self):
@@ -220,20 +224,23 @@ class CommandParser(UserDict):
                 if recognized_command_args_len < min_len:
                     raise ValueError(f"command {recognized_command.name!r} expected {min_len} positional argument(s), {recognized_command_args_len} given")
                 if recognized_command_args_len > max_len:
+                    if min_len == max_len:  # no positional argument
+                        raise ValueError(f"command {recognized_command.name!r} expected {min_len} positional argument(s), {recognized_command_args_len} given")
                     # auto merge
                     cut = max_len - 1
-                    tmp = recognized_command_args[:cut]
-                    tmp.append("".join(recognized_command_args[cut:]))
-                    recognized_command_args = tmp
+                    merged_command_args = recognized_command_args[:cut]
+                    merged_command_args.append(" ".join(recognized_command_args[cut:]))
+                    recognized_command_args = merged_command_args
                     recognized_command_args_len = max_len
+                sim_exec_projection = 1
                 for i in range(recognized_command_args_len):
-                    try:
-                        parsed_arg = recognized_command.params[i].parse_arg(recognized_command_args[i])
-                    except ValueError as e:
-                        raise ValueError(f"could not parse {recognized_command_args[i]!r} as {recognized_command.params[i]!r}") from e
+                    parsed_arg = recognized_command.params[i].parse_arg(recognized_command_args[i])
                     parsed_args.append(parsed_arg)
+                    sim_exec_projection *= len(parsed_arg)
+                    if sim_exec_projection > self.MAX_SIM_EXEC:
+                        raise ValueError(f"too many possible simultaneous executions: {sim_exec_projection} > {self.MAX_SIM_EXEC}")
         except ValueError as e:
-            raise CommandError(f"failed to parse {command_text!r}: {e}") from None
+            raise CommandError(f"failed to parse {command_text!r}: {e}") from e
         for args in product(*parsed_args):
             if hasattr(recognized_command.func, "__func__") and hasattr(recognized_command.func, "__self__"):  # method
                 yield recognized_command.func.__func__(recognized_command.func.__self__, *args, **kwargs)
