@@ -1,3 +1,4 @@
+import cgi
 import os
 import re
 import shutil
@@ -5,6 +6,7 @@ import zipfile
 from collections import OrderedDict
 from datetime import datetime
 from typing import Optional, Union
+from urllib import parse
 
 import requests
 
@@ -168,7 +170,10 @@ class Downloader(object):
         self.__url = r.url
         self.__content_length = int(str(r.headers.get("Content-Length", 0)))
         self.__content_type = str(r.headers.get("Content-Type"))
-        self.filename = os.path.join(self.__output_dir, os.path.split(self.url)[1].split("?", 1)[0])
+        try:
+            self.filename = os.path.join(self.__output_dir, parse.unquote(cgi.parse_header(r.headers["content-disposition"])[1]["filename*"]).lstrip("utf-8''"))
+        except KeyError:
+            self.filename = os.path.join(self.__output_dir, os.path.split(self.url)[1].split("?", 1)[0])
 
         if filename:
             self.__rename(filename)

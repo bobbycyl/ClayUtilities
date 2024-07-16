@@ -25,8 +25,13 @@ def test():
     print(d.url, d.filename, path)
     assert d.filename == os.path.join("./", "Ventoy_v1.0.97 (1).sha256")
 
-    os.remove("./ArchLinuxCN_lastupdate")
-    os.remove("./ArchLinuxCN_lastupdate (1)")
+    d.start("https://dl.sayobot.cn/beatmaps/download/full/517474")
+    assert d.filename == os.path.join("./", "517474 Camellia - Exit This Earth's Atomosphere.osz")
 
-    os.remove("./Ventoy_v1.0.97.sha256")
-    os.remove("./Ventoy_v1.0.97 (1).sha256")
+
+def teardown_module():
+    for filename in ["./ArchLinuxCN_lastupdate", "./ArchLinuxCN_lastupdate (1)", "./Ventoy_v1.0.97.sha256", "./Ventoy_v1.0.97 (1).sha256", "517474 Camellia - Exit This Earth's Atomosphere.osz"]:
+        try:
+            os.remove(filename)
+        except FileNotFoundError:
+            pass
