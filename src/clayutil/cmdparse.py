@@ -1,9 +1,11 @@
+import re
 import shlex
+import sys
 from abc import ABC, abstractmethod
 from collections import UserDict
 from collections.abc import Callable, Collection, Generator, Mapping
 from itertools import chain, product
-from typing import Any, Optional
+from typing import Any, Optional, TypeVar
 
 import orjson
 
@@ -17,11 +19,16 @@ __all__ = (
     "BoolField",
     "StringField",
     "JSONStringField",
+    "CollectionField",
     "parse_conditions",
     "CustomField",
     "Command",
     "CommandParser",
 )
+
+ENV = ""
+if "streamlit" in sys.modules:
+    ENV = "MD"
 
 
 class CommandError(Exception):
@@ -42,7 +49,10 @@ class Field(ABC):
         pass
 
     def __str__(self):
-        return f"[*{self.__class__.__name__}*: {self.param}]" if self.optional else f"<*{self.__class__.__name__}*: {self.param}>"
+        if ENV == "MD":
+            return f"[*{self.__class__.__name__}*: {self.param}]" if self.optional else f"<*{self.__class__.__name__}*: {self.param}>"
+        else:
+            return f"[{self.__class__.__name__}: {self.param}]" if self.optional else f"<{self.__class__.__name__}: {self.param}>"
 
     __repr__ = __str__
 
@@ -72,6 +82,24 @@ class JSONStringField(Field):
 
     def parse_arg(self, arg) -> tuple:
         return (validate_and_decode_json_string(arg, self.schema),)
+
+
+class CollectionField(Field):
+    __slots__ = ("_param", "__scope", "_optional")
+    _T = TypeVar("_T", bound=Any)
+    __scope: Collection[_T]
+
+    def __init__(self, param: str, scope: Collection[_T], optional: bool = False):
+        super().__init__(param, optional)
+        self.__scope = scope
+
+    def parse_arg(self, arg: str) -> tuple[_T]:
+        return tuple(filter(lambda x: re.match(f"^{arg}$", str(x)), self.__scope))
+
+    def __str__(self):
+        return f"[{self.param}]" if self.optional else f"<{self.param}>"
+
+    __repr__ = __str__
 
 
 def parse_conditions(value, conditions: list[str]) -> bool:
@@ -109,13 +137,14 @@ def parse_conditions(value, conditions: list[str]) -> bool:
 class CustomField(Field):
     MAX_NEST = 2
     __slots__ = ("_param", "__scope", "_optional")
-    __scope: Mapping
+    _T = TypeVar("_T", bound=Any)
+    __scope: Mapping[str, _T]
 
-    def __init__(self, param: str, scope: Mapping, optional: bool = False):
+    def __init__(self, param: str, scope: Mapping[str, _T], optional: bool = False):
         super().__init__(param, optional)
         self.__scope = scope
 
-    def parse_arg(self, arg: str, nested: int = 0) -> tuple | set:
+    def parse_arg(self, arg: str, nested: int = 0) -> tuple[_T] | set[_T]:
         try:
             if arg[0] == "@":  # selector
                 selector = orjson.loads(arg[1:])
@@ -131,7 +160,7 @@ class CustomField(Field):
         except ValueError:
             raise
 
-    def select(self, selector, nested: int) -> tuple | set:
+    def select(self, selector, nested: int) -> tuple[_T] | set[_T]:
         if nested > self.MAX_NEST:
             raise ValueError("too many nested selectors")
         if isinstance(selector, dict):  # &
@@ -145,6 +174,11 @@ class CustomField(Field):
             return set(chain.from_iterable(self.parse_arg(arg, nested + 1) for arg in selector))
         else:
             raise ValueError(f"{selector!r} is not a valid selector")
+
+    def __str__(self):
+        return f"[{self.param}]" if self.optional else f"<{self.param}>"
+
+    __repr__ = __str__
 
 
 class Command(object):
@@ -257,7 +291,10 @@ class CommandParser(UserDict):
 
     def help(self, command_name: Optional[str] = None) -> str:
         if command_name is None:
-            return "\n\n".join(f"**{command.name}** - {command.description}" for command in self.data.values())
+            if ENV == "MD":
+                return "\n\n".join(f"**{command.name}** - {command.description}" for command in self.data.values())
+            else:
+                return "\n".join(f"{command.name} - {command.description}" for command in self.data.values())
         else:
             if command_name not in self.data:
                 raise ValueError(f"unknown command {command_name!r}")
