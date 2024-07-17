@@ -14,6 +14,7 @@ __all__ = (
     "Field",
     "IntegerField",
     "FloatField",
+    "BoolField",
     "StringField",
     "JSONStringField",
     "parse_conditions",
@@ -41,7 +42,7 @@ class Field(ABC):
         pass
 
     def __str__(self):
-        return f"[{self.__class__.__name__}: {self.param}]" if self.optional else f"<{self.__class__.__name__}: {self.param}>"
+        return f"[*{self.__class__.__name__}*: {self.param}]" if self.optional else f"<*{self.__class__.__name__}*: {self.param}>"
 
     __repr__ = __str__
 
@@ -54,6 +55,11 @@ class IntegerField(Field):
 class FloatField(Field):
     def parse_arg(self, arg: str) -> tuple[float]:
         return (float(arg),)
+
+
+class BoolField(Field):
+    def parse_arg(self, arg: str) -> tuple[bool]:
+        return (bool(arg),)
 
 
 class StringField(Field):
@@ -179,7 +185,7 @@ class Command(object):
         self.func = func
 
     def __str__(self):
-        return "%s\n%s" % (self.description, self.info[2])
+        return "%s\n\n%s" % (self.description, self.info[2])
 
     __repr__ = __str__
 
@@ -251,7 +257,7 @@ class CommandParser(UserDict):
 
     def help(self, command_name: Optional[str] = None) -> str:
         if command_name is None:
-            return "\n".join(f"{command.name} - {command.description}" for command in self.data.values())
+            return "\n\n".join(f"**{command.name}** - {command.description}" for command in self.data.values())
         else:
             if command_name not in self.data:
                 raise ValueError(f"unknown command {command_name!r}")
