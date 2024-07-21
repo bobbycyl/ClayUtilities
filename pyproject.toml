@@ -10,7 +10,6 @@ dependencies = [
     "patool",
     "requests",
     "textract",
-    "pypdf",
     "orjson",
     "jsonschema",
     "pytest",
