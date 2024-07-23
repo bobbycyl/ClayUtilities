@@ -1,5 +1,4 @@
 import cgi
-import logging
 import os
 import re
 import shutil
@@ -9,23 +8,15 @@ from datetime import datetime
 from typing import Optional, Union
 from urllib import parse
 
-import chardet
-import patoolib
 import requests
-import textract
-from textract.exceptions import ExtensionNotSupported
 
 __all__ = (
     "check_duplicate_filename",
     "compress_as_zip",
-    "detect_encoding",
-    "advanced_search",
     "PropertiesValueError",
     "Properties",
     "Downloader",
 )
-
-re_spaces = re.compile(r"\s")
 
 
 def check_duplicate_filename(filename: str, pattern_string: str = r" \({d}\)") -> str:
@@ -49,52 +40,6 @@ def compress_as_zip(path: str, zip_filename: str) -> None:
             relpath = os.path.relpath(root, path)
             for filename in files:
                 zipf.write(os.path.join(root, filename), os.path.join(relpath, filename))
-
-
-def detect_encoding(filename: str, encoding_guess_length: int):
-    with open(filename, "rb") as fi:
-        result = chardet.detect(fi.read(encoding_guess_length))
-    return result["encoding"]
-
-
-def advanced_search(directory: str, substring: str, encoding_guess_length: int, auto_delete_tmp: bool = True):
-    logging.disable(logging.ERROR)
-    for root, dirs, files in os.walk(directory):
-        for filename in files:
-            real_filename = os.path.join(root, filename)
-            read_str = ""
-            if patoolib.is_archive(real_filename):
-                # archive
-                extracted_dir = os.path.join(root, ".tmp", filename)
-                try:
-                    patoolib.extract_archive(os.path.join(root, real_filename), outdir=extracted_dir)
-                except Exception as e:
-                    yield filename, -1, -1, str(e)
-                    continue
-                for _filename, _l, _c, _w in advanced_search(extracted_dir, substring, encoding_guess_length):
-                    yield os.path.join(filename, _filename), _l, _c, _w
-                if auto_delete_tmp:
-                    shutil.rmtree(extracted_dir)
-            else:
-                try:
-                    read_str = str(textract.process(real_filename), encoding="utf-8")
-                except ExtensionNotSupported:
-                    # text
-                    with open(real_filename, "r", encoding=detect_encoding(real_filename, encoding_guess_length), errors="ignore") as fi:
-                        read_str = fi.read()
-
-            # find
-            for match in re.finditer(substring, read_str):
-                line_number = read_str.count("\n", 0, match.start()) + 1
-                column_number = match.start() - read_str.rfind("\n", 0, match.start())
-                first_space_after_substring_m = re_spaces.search(read_str, match.end())
-                first_space_after_substring = first_space_after_substring_m.end() if first_space_after_substring_m is not None else -1
-                first_enter_after_substring = read_str.find("\n", match.end())
-                word = read_str[match.end():first_space_after_substring if first_space_after_substring < first_enter_after_substring else first_enter_after_substring]
-                yield filename, line_number, column_number, word
-    if auto_delete_tmp and os.path.exists(os.path.join(directory, ".tmp")):
-        os.rmdir(os.path.join(directory, ".tmp"))
-    logging.disable(logging.NOTSET)
 
 
 class PropertiesValueError(ValueError):

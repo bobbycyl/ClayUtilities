@@ -6,10 +6,7 @@ build-backend = "hatchling.build"
 name = "clayutil"
 version = "0.1"
 dependencies = [
-    "chardet",
-    "patool",
     "requests",
-    "textract",
     "orjson",
     "jsonschema",
     "pytest",
