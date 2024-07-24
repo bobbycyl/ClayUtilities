@@ -111,6 +111,9 @@ class Downloader(object):
     It features mirror list support.
     """
 
+    LEGACY_CHROME_UA = "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.90 Safari/537.36"
+    CHROME_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36"
+
     def __init__(self, output_dir: str, mirrors: Optional[dict[str, list[str]]] = None):
         """
         Initialize the Downloader object.
@@ -147,7 +150,7 @@ class Downloader(object):
         """
 
         if headers is None:
-            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.90 Safari/537.36"}
+            headers = {"User-Agent": self.CHROME_UA}
 
         for old_url, new_urls in self.mirrors.items():
             if old_url in url:
