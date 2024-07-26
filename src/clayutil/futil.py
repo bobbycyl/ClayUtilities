@@ -19,17 +19,15 @@ __all__ = (
 )
 
 
-def check_duplicate_filename(filename: str, pattern_string: str = r" \({d}\)") -> str:
-    pattern = re.compile(pattern_string.replace("{d}", r"(\d+)"))
+def check_duplicate_filename(filename: str, pattern_string: str = r" \({n}\)") -> str:
+    pattern = re.compile(r"(.*%s)" % pattern_string.replace("{n}", r")(\d+)("))
     if os.path.exists(filename):
         splitext_filename = os.path.splitext(filename)
-        m = pattern.search(splitext_filename[0])
-        suffix_string = pattern_string.replace("\\", "")
+        m = pattern.match(splitext_filename[0])
         if m:
-            filename = "%s%s%s" % (splitext_filename[0][: m.span()[0]], suffix_string.format(d=int(m.group(1)) + 1), splitext_filename[1])
+            filename = "%s%s" % (pattern.sub(lambda m: "%s%d%s" % (m.group(1), int(m.group(2)) + 1, m.group(3)), splitext_filename[0]), splitext_filename[1])
         else:
-            suffix_string.format(d=1)
-            filename = "%s%s%s" % (splitext_filename[0], suffix_string.format(d=1), splitext_filename[1])
+            filename = "%s%s%s" % (splitext_filename[0], pattern_string.replace("\\", "").format(n=1), splitext_filename[1])
         return check_duplicate_filename(filename)
     return filename
 
