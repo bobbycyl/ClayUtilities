@@ -53,7 +53,7 @@ def test():
     assert run(cmdparser.parse_command('test hi 3 3.14 @["@{\\"score\\":[\\"=80\\"]}","@{\\"score\\":[\\"<65\\"],\\"gender\\":\\"f\\"}","@{\\"score\\":[\\"<=64\\"],\\"gender\\":\\"m\\"}"]')) == 2
     assert run(cmdparser.parse_command('test \'\' 3 3.14 @{"score":[">100"],"gender":"f"}')) == 0
     assert run(cmdparser.parse_command('test "" 3.6 3.14 c_f')) == 0
-    assert run(cmdparser.parse_command('test \'a b c d\' 3 3.14 @{"score":["!=80","<90"],"gender":"f"} {"a": [0, 1], "b": [2, 3]}')) == 2
+    assert run(cmdparser.parse_command('test \'a b c d\' 3.* 3.14 @{"score":["!=80","<90"],"gender":"f"} {"a": [0, 1], "b": [2, 3]}')) == 4
     assert run(cmdparser.parse_command("help test test2")) == "unknown command 'test test2'"
     cmdparser.MAX_SIM_EXEC = 1
     with pytest.raises(CommandError, match=re.escape("failed to parse 'test \"\" 3.6 3.14 c_9': 'c_9' outside of the scope 'arg4'")):

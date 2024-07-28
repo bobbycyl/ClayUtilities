@@ -1,10 +1,12 @@
 import cgi
+import functools
 import os
 import re
 import shutil
 import zipfile
 from collections import OrderedDict
 from datetime import datetime
+from time import sleep
 from typing import Optional, Union
 from urllib import parse
 
@@ -16,6 +18,7 @@ __all__ = (
     "PropertiesValueError",
     "Properties",
     "Downloader",
+    "filelock",
 )
 
 
@@ -212,3 +215,27 @@ class Downloader(object):
     @property
     def content_type(self):
         return self.__content_type
+
+
+def filelock(func):
+    """simple file lock
+
+    lock filename based on the first argument of the function if exists else LCK
+    """
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        if len(args) > 0:
+            filename = "%s.LCK" % args[0]
+        else:
+            filename = "LCK"
+        while os.path.exists(filename):
+            sleep(1)
+        with open(filename, "w"):
+            pass
+        try:
+            return func(*args, **kwargs)
+        finally:
+            os.remove(filename)
+
+    return wrapper
