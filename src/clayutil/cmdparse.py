@@ -219,7 +219,7 @@ class Command(object):
         self.func = func
 
     def __str__(self):
-        return "%s\n<br>%s" % (self.description, self.info[2])
+        return "%s  \n%s" % (self.description, self.info[2])
 
     __repr__ = __str__
 
@@ -292,7 +292,7 @@ class CommandParser(UserDict):
     def help(self, command_name: Optional[str] = None) -> str:
         if command_name is None:
             if ENV == "MD":
-                return "\n<br>".join(f"**{command.name}** - {command.description}" for command in self.data.values())
+                return "  \n".join(f"**{command.name}** - {command.description}" for command in self.data.values())
             else:
                 return "\n".join(f"{command.name} - {command.description}" for command in self.data.values())
         else:
