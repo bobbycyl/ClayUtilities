@@ -97,7 +97,7 @@ class CollectionField(Field):
         return tuple(filter(lambda x: re.match(f"^{arg}$", str(x)), self.__scope))
 
     def __str__(self):
-        return f"[{self.param}]" if self.optional else f"<{self.param}>"
+        return f"[{self.param}{{.*}}]" if self.optional else f"<{self.param}{{.*}}>"
 
     __repr__ = __str__
 
@@ -176,7 +176,7 @@ class CustomField(Field):
             raise ValueError(f"{selector!r} is not a valid selector")
 
     def __str__(self):
-        return f"[{self.param}]" if self.optional else f"<{self.param}>"
+        return f"[@{self.param}]" if self.optional else f"<@{self.param}>"
 
     __repr__ = __str__
 
@@ -219,7 +219,7 @@ class Command(object):
         self.func = func
 
     def __str__(self):
-        return "%s\n\n%s" % (self.description, self.info[2])
+        return "%s\n<br>%s" % (self.description, self.info[2])
 
     __repr__ = __str__
 
@@ -292,7 +292,7 @@ class CommandParser(UserDict):
     def help(self, command_name: Optional[str] = None) -> str:
         if command_name is None:
             if ENV == "MD":
-                return "\n\n".join(f"**{command.name}** - {command.description}" for command in self.data.values())
+                return "\n<br>".join(f"**{command.name}** - {command.description}" for command in self.data.values())
             else:
                 return "\n".join(f"{command.name} - {command.description}" for command in self.data.values())
         else:
