@@ -217,25 +217,27 @@ class Downloader(object):
         return self.__content_type
 
 
-def filelock(func):
+def filelock(index):
     """simple file lock
 
-    lock filename based on the first argument of the function if exists else LCK
+    lock filename based on the specific argument of the function if exists else LCK
     """
 
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        if len(args) > 0:
-            filename = "%s.LCK" % args[0]
-        else:
-            filename = "LCK"
-        while os.path.exists(filename):
-            sleep(1)
-        with open(filename, "w"):
-            pass
-        try:
-            return func(*args, **kwargs)
-        finally:
-            os.remove(filename)
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            if len(args) > 0:
+                filename = "%s.LCK" % args[index]
+            else:
+                filename = "LCK"
+            while os.path.exists(filename):
+                sleep(1)
+            with open(filename, "w"):
+                pass
+            try:
+                return func(*args, **kwargs)
+            finally:
+                os.remove(filename)
 
-    return wrapper
+        return wrapper
+    return decorator
