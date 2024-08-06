@@ -292,9 +292,9 @@ class CommandParser(UserDict):
     def help(self, command_name: Optional[str] = None) -> str:
         if command_name is None:
             if ENV == "MD":
-                return "  \n".join(f"**{command.name}** - {command.description}" for command in self.data.values())
+                return 'use "help *command_name*" to show the help page of a command\n\n%s' % "  \n".join(f"**{command.name}** - {command.description}" for command in self.data.values())
             else:
-                return "\n".join(f"{command.name} - {command.description}" for command in self.data.values())
+                return 'use "help command_name" to show the help page of a command\n%s' % "\n".join(f"{command.name} - {command.description}" for command in self.data.values())
         else:
             if command_name not in self.data:
                 raise ValueError(f"unknown command {command_name!r}")
