@@ -187,7 +187,7 @@ class Downloader(object):
 
         if self.content_type[:5] == "text/":
             r.encoding = r.apparent_encoding
-            with open(self.filename, "w") as f:
+            with open(self.filename, "w", encoding=r.encoding) as f:
                 f.write(r.text)
         else:
             with open(self.filename, "wb") as fb:
