@@ -6,11 +6,12 @@ build-backend = "hatchling.build"
 name = "clayutil"
 version = "0.1"
 dependencies = [
-    "jsonschema",
-    "orjson",
-    "pycryptodome",
-    "pytest",
+    "aiohttp",
     "requests",
+    "pycryptodome",
+    "orjson",
+    "jsonschema",
+    "pytest",
 ]
 authors = [
     { name = "bobbycyl", email = "bobbycyl@126.com" },

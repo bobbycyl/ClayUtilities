@@ -1,3 +1,4 @@
+import asyncio
 import cgi
 import functools
 import os
@@ -10,6 +11,7 @@ from time import sleep
 from typing import Optional, Union
 from urllib import parse
 
+import aiohttp
 import requests
 
 __all__ = (
@@ -126,10 +128,7 @@ class Downloader(object):
         os.makedirs(output_dir, exist_ok=True)
         self.__output_dir: str = output_dir
         self.mirrors: dict[str, list[str]] = mirrors if mirrors is not None else {}
-        self.__url: str = ""
-        self.__content_length: int = 0
-        self.__content_type: str = ""
-        self.filename: str = ""
+        self.history: list[tuple[str, str, int, str]] = []  # url, filename, content_length, content_type
 
     def start(self, url: str, filename: str = "", headers: Optional[dict] = None, check_duplicate: bool = False, proxies: Optional[dict] = None) -> str:
         """
@@ -146,7 +145,7 @@ class Downloader(object):
         :param filename: the name of the local file
         :param headers: HTTP headers to send with the request
         :param check_duplicate: whether to check for duplicate filenames and rename if necessary
-        :param proxies: the proxy to use for the request
+        :param proxies: the proxies to use for the request
         :return: the absolute path of the downloaded local file
         """
 
@@ -171,50 +170,90 @@ class Downloader(object):
             r = requests.get(url, headers=headers, stream=True, allow_redirects=True)
         else:
             r = requests.get(url, headers=headers, stream=True, allow_redirects=True, proxies=proxies)
-        self.__url = r.url
-        self.__content_length = int(str(r.headers.get("Content-Length", 0)))
-        self.__content_type = str(r.headers.get("Content-Type"))
         try:
-            self.filename = os.path.join(self.__output_dir, parse.unquote(cgi.parse_header(r.headers["content-disposition"])[1]["filename*"]).lstrip("utf-8''"))
+            processed_filename = os.path.join(self.__output_dir, parse.unquote(cgi.parse_header(r.headers["content-disposition"])[1]["filename*"]).lstrip("utf-8''"))
         except KeyError:
-            self.filename = os.path.join(self.__output_dir, os.path.split(self.url)[1].split("?", 1)[0])
+            processed_filename = os.path.join(self.__output_dir, os.path.split(r.url)[1].split("?", 1)[0])
 
         if filename:
-            self.__rename(filename)
+            processed_filename = self.__rename(processed_filename, filename)
 
         if check_duplicate:
-            self.filename = check_duplicate_filename(self.filename)
+            processed_filename = check_duplicate_filename(processed_filename)
 
-        if self.content_type[:5] == "text/":
+        content_type = str(r.headers.get("Content-Type"))
+        if content_type[:5] == "text/":
             r.encoding = r.apparent_encoding
-            with open(self.filename, "w", encoding=r.encoding) as f:
+            with open(processed_filename, "w", encoding=r.encoding) as f:
                 f.write(r.text)
         else:
-            with open(self.filename, "wb") as fb:
+            with open(processed_filename, "wb") as fb:
                 shutil.copyfileobj(r.raw, fb)
 
-        return os.path.abspath(self.filename)
+        self.history.append((r.url, processed_filename, int(str(r.headers.get("Content-Length", 0))), content_type))
+        return os.path.abspath(processed_filename)
 
-    def __rename(self, new_filename: str):
+    async def async_start(self, url: str, filename: str = "", headers: Optional[dict] = None) -> str:
+        """
+
+        similar to start() but using asyncio
+
+        :param url: the URL of the target file
+        :param filename: the name of the local file
+        :param headers: HTTP headers to send with the request
+        :return: the absolute path of the downloaded local file
+        """
+        if headers is None:
+            headers = {"User-Agent": self.CHROME_UA}
+
+        for old_url, new_urls in self.mirrors.items():
+            if old_url in url:
+                for new_url in new_urls:
+                    test_url = url.replace(old_url, new_url)
+                    try:
+                        async with aiohttp.ClientSession(trust_env=True) as session:
+                            async with session.get(url, headers=headers, allow_redirects=True) as resp:
+                                code = resp.status
+                    except aiohttp.ClientError:
+                        continue
+                    if code == 200:
+                        proxy = None
+                        url = test_url
+                        break
+                break
+
+        async with aiohttp.ClientSession(trust_env=True) as session:
+            async with session.get(url, headers=headers, allow_redirects=True) as resp:
+                content_length = int(str(resp.headers.get("Content-Length", 0)))
+                content_type = str(resp.headers.get("Content-Type"))
+                response_url = str(resp.url)
+                try:
+                    processed_filename = os.path.join(self.__output_dir, parse.unquote(cgi.parse_header(resp.headers["content-disposition"])[1]["filename*"]).lstrip("utf-8''"))
+                except KeyError:
+                    processed_filename = os.path.join(self.__output_dir, os.path.split(response_url)[1].split("?", 1)[0])
+
+                async with asyncio.Lock():
+                    if filename:
+                        processed_filename = self.__rename(processed_filename, filename)
+
+                    processed_filename = check_duplicate_filename(processed_filename)
+
+                with open(processed_filename, "wb") as fb:
+                    async for chunk in resp.content.iter_chunked(1024):
+                        fb.write(chunk)
+
+        self.history.append((response_url, processed_filename, content_length, content_type))
+        return os.path.abspath(processed_filename)
+
+    def __rename(self, old_filename: str, new_filename: str):
         if os.path.splitext(new_filename)[1] == "":
-            self.filename = os.path.join(
+            renamed_filename = os.path.join(
                 self.__output_dir,
-                "%s%s" % (new_filename, os.path.splitext(self.filename)[1]),
+                "%s%s" % (new_filename, os.path.splitext(old_filename)[1]),
             )
         else:
-            self.filename = os.path.join(self.__output_dir, new_filename)
-
-    @property
-    def url(self):
-        return self.__url
-
-    @property
-    def content_length(self):
-        return self.__content_length
-
-    @property
-    def content_type(self):
-        return self.__content_type
+            renamed_filename = os.path.join(self.__output_dir, new_filename)
+        return renamed_filename
 
 
 def filelock(index):
@@ -240,4 +279,5 @@ def filelock(index):
                 os.remove(filename)
 
         return wrapper
+
     return decorator
