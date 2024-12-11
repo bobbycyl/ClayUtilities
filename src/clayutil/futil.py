@@ -60,7 +60,7 @@ class Properties(PropertiesOrderedDict):
     while a line starts with "#" will be parsed as a comment.
     """
 
-    pattern = re.compile(r"^([^#]+)=(.+)\n$")
+    pattern = re.compile(r"^([^#]+?)=(.+)\n$")
 
     def __init__(self, filename: str, encoding: str = "utf-8"):
         super().__init__()
@@ -217,7 +217,6 @@ class Downloader(object):
                     except aiohttp.ClientError:
                         continue
                     if code == 200:
-                        proxy = None
                         url = test_url
                         break
                 break
