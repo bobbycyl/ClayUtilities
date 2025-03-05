@@ -69,7 +69,12 @@ class FloatField(Field):
 
 class BoolField(Field):
     def parse_arg(self, arg: str) -> tuple[bool]:
-        return (bool(arg),)
+        if arg == "true":
+            return (True,)
+        elif arg == "false":
+            return (False,)
+        else:
+            raise ValueError('must be "true" or "false"')
 
 
 class StringField(Field):
@@ -93,7 +98,7 @@ class CollectionField(Field):
         super().__init__(param, optional)
         self.__scope = scope
 
-    def parse_arg(self, arg: str) -> tuple[_T]:
+    def parse_arg(self, arg: str) -> tuple[_T, ...]:
         return tuple(filter(lambda x: re.match(f"^{arg}$", str(x)), self.__scope))
 
     def __str__(self):
@@ -144,7 +149,7 @@ class CustomField(Field):
         super().__init__(param, optional)
         self.__scope = scope
 
-    def parse_arg(self, arg: str, nested: int = 0) -> tuple[_T] | set[_T]:
+    def parse_arg(self, arg: str, nested: int = 0) -> tuple[_T, ...] | set[_T]:
         try:
             if arg[0] == "@":  # selector
                 selector = orjson.loads(arg[1:])
@@ -160,7 +165,7 @@ class CustomField(Field):
         except ValueError:
             raise
 
-    def select(self, selector, nested: int) -> tuple[_T] | set[_T]:
+    def select(self, selector, nested: int) -> tuple[_T, ...] | set[_T]:
         if nested > self.MAX_NEST:
             raise ValueError("too many nested selectors")
         if isinstance(selector, dict):  # &
