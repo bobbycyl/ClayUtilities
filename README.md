@@ -10,7 +10,7 @@ and `futil` represents file utilities.
 
 ClayUtilities包含一个 `clayutil` 包和一些脚本。
 其中，`cmdparse` 模块可以用于将用户命令链接到 Python 函数，
-`futil` 则代表 与文件相关的工具。
+`futil` 则代表与文件相关的工具。
 
 # Installation 安装
 
