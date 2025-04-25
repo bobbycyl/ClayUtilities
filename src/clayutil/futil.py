@@ -237,11 +237,12 @@ class Downloader(object):
 
                     processed_filename = check_duplicate_filename(processed_filename)
 
-                with open(processed_filename, "wb") as fb:
-                    async for chunk in resp.content.iter_chunked(1024):
-                        fb.write(chunk)
+                    with open(processed_filename, "wb") as fb:
+                        async for chunk in resp.content.iter_chunked(1024):
+                            fb.write(chunk)
 
-        self.history.append((response_url, processed_filename, content_length, content_type))
+        async with asyncio.Lock():
+            self.history.append((response_url, processed_filename, content_length, content_type))
         return os.path.abspath(processed_filename)
 
     def __rename(self, old_filename: str, new_filename: str):

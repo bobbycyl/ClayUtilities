@@ -1,10 +1,22 @@
 import asyncio
 import os
 
+import pytest
+
 from clayutil.futil import Downloader
 
 
-def test():
+@pytest.fixture
+def clean_tmp_files():
+    yield
+    for filename in ["./ArchLinuxCN_lastupdate", "./ArchLinuxCN_lastupdate (1)", "./Ventoy_v1.0.97.sha256", "./Ventoy_v1.0.97 (1).sha256", "517474 Camellia - Exit This Earth's Atomosphere.osz"]:
+        try:
+            os.remove(filename)
+        except FileNotFoundError:
+            pass
+
+
+def test(clean_tmp_files):
     proxies = {"http": "http://127.0.0.1:12334", "https": "http://127.0.0.1:12334"}
     mirrors = {
         "https://repo.archlinuxcn.org/": ["https://mirrors.tuna.tsinghua.edu.cn/archlinuxcn/", "https://mirrors.ustc.edu.cn/archlinuxcn/"],
@@ -47,15 +59,7 @@ async def async_test_main():
     return d.history
 
 
-def test_async():
+def test_async(clean_tmp_files):
     history = asyncio.run(async_test_main())
     filenames = sorted([i[1] for i in history])
     assert filenames == ["./ArchLinuxCN_lastupdate", "./ArchLinuxCN_lastupdate (1)"]
-
-
-def teardown_module():
-    for filename in ["./ArchLinuxCN_lastupdate", "./ArchLinuxCN_lastupdate (1)", "./Ventoy_v1.0.97.sha256", "./Ventoy_v1.0.97 (1).sha256", "517474 Camellia - Exit This Earth's Atomosphere.osz"]:
-        try:
-            os.remove(filename)
-        except FileNotFoundError:
-            pass
