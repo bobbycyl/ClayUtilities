@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from collections import UserDict
 from collections.abc import Callable, Collection, Generator, Mapping
 from itertools import chain, product
-from typing import Any, Optional, TypeVar
+from typing import Any, Generic, Optional, TypeVar
 
 import orjson
 
@@ -59,12 +59,18 @@ class Field(ABC):
 
 class IntegerField(Field):
     def parse_arg(self, arg: str) -> tuple[int]:
-        return (int(arg),)
+        try:
+            return (int(arg),)
+        except Exception:
+            raise ValueError(f"{arg!r} must be an integer")
 
 
 class FloatField(Field):
     def parse_arg(self, arg: str) -> tuple[float]:
-        return (float(arg),)
+        try:
+            return (float(arg),)
+        except Exception:
+            raise ValueError(f"{arg!r} must be a float")
 
 
 class BoolField(Field):
@@ -74,7 +80,7 @@ class BoolField(Field):
         elif arg == "false":
             return (False,)
         else:
-            raise ValueError('must be "true" or "false"')
+            raise ValueError(f'{arg!r} must be "true" or "false"')
 
 
 class StringField(Field):
@@ -89,9 +95,11 @@ class JSONStringField(Field):
         return (validate_and_decode_json_string(arg, self.schema),)
 
 
-class CollectionField(Field):
+_T = TypeVar("_T", bound=Any)
+
+
+class CollectionField(Generic[_T], Field):
     __slots__ = ("_param", "__scope", "_optional")
-    _T = TypeVar("_T", bound=Any)
     __scope: Collection[_T]
 
     def __init__(self, param: str, scope: Collection[_T], optional: bool = False):
@@ -135,14 +143,13 @@ def parse_conditions(value, conditions: list[str]) -> bool:
                     case _:
                         raise ValueError("invalid operator '%s'" % op)
         except ValueError as e:
-            raise ValueError(f"invalid condition {cond!r}") from e
+            raise ValueError(f"invalid condition {cond!r}")
     return all(it)
 
 
-class CustomField(Field):
+class CustomField(Generic[_T], Field):
     MAX_NEST = 2
     __slots__ = ("_param", "__scope", "_optional")
-    _T = TypeVar("_T", bound=Any)
     __scope: Mapping[str, _T]
 
     def __init__(self, param: str, scope: Mapping[str, _T], optional: bool = False):
@@ -157,11 +164,11 @@ class CustomField(Field):
             else:
                 return (self.__scope[arg],)
         except orjson.JSONDecodeError as e:
-            raise ValueError(f"{arg[1:]!r} is not a valid selector") from e
+            raise ValueError(f"{arg[1:]!r} is not a valid selector")
         except KeyError as e:
-            raise ValueError(f"{arg!r} outside of the scope {self.param!r}") from e
+            raise ValueError(f"{arg!r} outside of the scope {self.param!r}")
         except AttributeError as e:
-            raise ValueError(f"{self.param!r} has no attribute {arg!r}") from e
+            raise ValueError(f"{self.param!r} has no attribute {arg!r}")
         except ValueError:
             raise
 
@@ -285,7 +292,9 @@ class CommandParser(UserDict):
                     if sim_exec_projection > self.MAX_SIM_EXEC:
                         raise ValueError(f"too many possible simultaneous executions: {sim_exec_projection} > {self.MAX_SIM_EXEC}")
         except ValueError as e:
-            raise CommandError(f"failed to parse {command_text!r}: {e}") from e
+            raise CommandError(f"failed to parse {command_text!r}: {e}")
+        except Exception as e:
+            raise CommandError(f"failed to parse {command_text!r}") from e
         for args in product(*parsed_args):
             if hasattr(recognized_command.func, "__func__") and hasattr(recognized_command.func, "__self__"):  # method
                 yield recognized_command.func.__func__(recognized_command.func.__self__, *args, **kwargs)

@@ -41,7 +41,7 @@ class Validator(ABC):
 
 def validate_not_none(value):
     if value is None:
-        raise ValidationError(f"expected {value!r} to not be None")
+        raise ValidationError(f"expected {value!r} to be not None")
     return value
 
 
