@@ -58,6 +58,14 @@ class Field(ABC):
 
 
 class IntegerField(Field):
+    def __init__(self, param: str, optional: bool = False):
+        """整型参数
+
+        :param param: 参数名
+        :param optional: 是否可选参数
+        """
+        super().__init__(param, optional)
+
     def parse_arg(self, arg: str) -> tuple[int]:
         try:
             return (int(arg),)
@@ -66,6 +74,14 @@ class IntegerField(Field):
 
 
 class FloatField(Field):
+    def __init__(self, param: str, optional: bool = False):
+        """浮点型参数
+
+        :param param: 参数名
+        :param optional: 是否可选参数
+        """
+        super().__init__(param, optional)
+
     def parse_arg(self, arg: str) -> tuple[float]:
         try:
             return (float(arg),)
@@ -74,6 +90,16 @@ class FloatField(Field):
 
 
 class BoolField(Field):
+    def __init__(self, param: str, optional: bool = False):
+        """布尔型参数
+        
+        只有 true 和 false 会被接受
+
+        :param param: 参数名
+        :param optional: 是否可选参数
+        """
+        super().__init__(param, optional)
+
     def parse_arg(self, arg: str) -> tuple[bool]:
         if arg == "true":
             return (True,)
@@ -84,6 +110,15 @@ class BoolField(Field):
 
 
 class StringField(Field):
+    def __init__(self, param: str, optional: bool = False):
+        """布尔型参数
+
+        会自动删除首位的英文双引号
+
+        :param param: 参数名
+        :param optional: 是否可选参数
+        """
+        super().__init__(param, optional)
     def parse_arg(self, arg: str) -> tuple[str]:
         return (arg.strip('"'),)
 
@@ -91,6 +126,15 @@ class StringField(Field):
 class JSONStringField(Field):
     schema = None
 
+    def __init__(self, param: str, optional: bool = False):
+        """JSON 型参数
+
+        强烈建议仅作为末尾参数使用，因为解析命令时末尾参数的自动合并功能可以解决 JSON 字符串中的空格问题
+
+        :param param: 参数名
+        :param optional: 是否可选参数
+        """
+        super().__init__(param, optional)
     def parse_arg(self, arg) -> tuple:
         return (validate_and_decode_json_string(arg, self.schema),)
 
@@ -103,6 +147,12 @@ class CollectionField(Generic[_T], Field):
     __scope: Collection[_T]
 
     def __init__(self, param: str, scope: Collection[_T], optional: bool = False):
+        """集合型参数
+
+        :param param: 参数名
+        :param scope: 用于正则匹配的域
+        :param optional: 是否可选参数
+        """
         super().__init__(param, optional)
         self.__scope = scope
 
@@ -153,6 +203,12 @@ class CustomField(Generic[_T], Field):
     __scope: Mapping[str, _T]
 
     def __init__(self, param: str, scope: Mapping[str, _T], optional: bool = False):
+        """自定义类型参数
+
+        :param param: 参数名
+        :param scope: 用于条件匹配的域
+        :param optional: 是否可选参数
+        """
         super().__init__(param, optional)
         self.__scope = scope
 
