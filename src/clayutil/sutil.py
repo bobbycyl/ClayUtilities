@@ -9,6 +9,7 @@ __all__ = (
     "SecureSession",
     "export_rsa_key",
     "sha256sum",
+    "md5sum",
 )
 
 
@@ -65,3 +66,7 @@ def export_rsa_key(name: str) -> None:
 
 def sha256sum(b: bytes) -> str:
     return hashlib.sha256(b).hexdigest()
+
+
+def md5sum(b: bytes) -> str:
+    return hashlib.md5(b).hexdigest()
