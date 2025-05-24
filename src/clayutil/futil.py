@@ -166,31 +166,28 @@ class Downloader(object):
                         break
                 break
 
-        if proxies is None:
-            r = requests.get(url, headers=headers, stream=True, allow_redirects=True)
-        else:
-            r = requests.get(url, headers=headers, stream=True, allow_redirects=True, proxies=proxies)
-        try:
-            processed_filename = os.path.join(self.__output_dir, parse.unquote(cgi.parse_header(r.headers["content-disposition"])[1]["filename*"]).lstrip("utf-8''"))
-        except KeyError:
-            processed_filename = os.path.join(self.__output_dir, os.path.split(r.url)[1].split("?", 1)[0])
+        with requests.get(url, headers=headers, stream=True, allow_redirects=True, proxies=proxies if proxies is not None else {}) as r:
+            try:
+                processed_filename = os.path.join(self.__output_dir, parse.unquote(cgi.parse_header(r.headers["content-disposition"])[1]["filename*"]).lstrip("utf-8''"))
+            except KeyError:
+                processed_filename = os.path.join(self.__output_dir, os.path.split(r.url)[1].split("?", 1)[0])
 
-        if filename:
-            processed_filename = self.__rename(processed_filename, filename)
+            if filename:
+                processed_filename = self.__rename(processed_filename, filename)
 
-        if check_duplicate:
-            processed_filename = check_duplicate_filename(processed_filename)
+            if check_duplicate:
+                processed_filename = check_duplicate_filename(processed_filename)
 
-        content_type = str(r.headers.get("Content-Type"))
-        if content_type[:5] == "text/":
-            r.encoding = r.apparent_encoding
-            with open(processed_filename, "w", encoding=r.encoding) as f:
-                f.write(r.text)
-        else:
-            with open(processed_filename, "wb") as fb:
-                shutil.copyfileobj(r.raw, fb)
+            content_type = str(r.headers.get("Content-Type"))
+            if content_type[:5] == "text/":
+                r.encoding = r.apparent_encoding
+                with open(processed_filename, "w", encoding=r.encoding) as f:
+                    f.write(r.text)
+            else:
+                with open(processed_filename, "wb") as fb:
+                    shutil.copyfileobj(r.raw, fb)
 
-        self.history.append((r.url, processed_filename, int(str(r.headers.get("Content-Length", 0))), content_type))
+            self.history.append((r.url, processed_filename, int(str(r.headers.get("Content-Length", 0))), content_type))
         return os.path.abspath(processed_filename)
 
     async def async_start(self, url: str, filename: str = "", headers: Optional[dict] = None) -> str:
@@ -245,7 +242,7 @@ class Downloader(object):
             self.history.append((response_url, processed_filename, content_length, content_type))
         return os.path.abspath(processed_filename)
 
-    def __rename(self, old_filename: str, new_filename: str):
+    def __rename(self, old_filename: str, new_filename: str) -> str:
         if os.path.splitext(new_filename)[1] == "":
             renamed_filename = os.path.join(
                 self.__output_dir,
