@@ -45,8 +45,8 @@ class Field(ABC):
         self.optional = optional
 
     @abstractmethod
-    def parse_arg(self, arg: str) -> Collection:
-        pass
+    def parse_arg(self, arg: str, *args, **kwargs) -> Collection:
+        raise NotImplementedError
 
     def __str__(self):
         if ENV == "MD":
@@ -66,7 +66,7 @@ class IntegerField(Field):
         """
         super().__init__(param, optional)
 
-    def parse_arg(self, arg: str) -> tuple[int]:
+    def parse_arg(self, arg: str, *args, **kwargs) -> tuple[int]:
         try:
             return (int(arg),)
         except Exception:
@@ -82,7 +82,7 @@ class FloatField(Field):
         """
         super().__init__(param, optional)
 
-    def parse_arg(self, arg: str) -> tuple[float]:
+    def parse_arg(self, arg: str, *args, **kwargs) -> tuple[float]:
         try:
             return (float(arg),)
         except Exception:
@@ -92,7 +92,7 @@ class FloatField(Field):
 class BoolField(Field):
     def __init__(self, param: str, optional: bool = False):
         """布尔型参数
-        
+
         只有 true 和 false 会被接受
 
         :param param: 参数名
@@ -100,7 +100,7 @@ class BoolField(Field):
         """
         super().__init__(param, optional)
 
-    def parse_arg(self, arg: str) -> tuple[bool]:
+    def parse_arg(self, arg: str, *args, **kwargs) -> tuple[bool]:
         if arg == "true":
             return (True,)
         elif arg == "false":
@@ -119,7 +119,8 @@ class StringField(Field):
         :param optional: 是否可选参数
         """
         super().__init__(param, optional)
-    def parse_arg(self, arg: str) -> tuple[str]:
+
+    def parse_arg(self, arg: str, *args, **kwargs) -> tuple[str]:
         return (arg.strip('"'),)
 
 
@@ -135,7 +136,8 @@ class JSONStringField(Field):
         :param optional: 是否可选参数
         """
         super().__init__(param, optional)
-    def parse_arg(self, arg) -> tuple:
+
+    def parse_arg(self, arg, *args, **kwargs) -> tuple:
         return (validate_and_decode_json_string(arg, self.schema),)
 
 
@@ -156,7 +158,7 @@ class CollectionField(Generic[_T], Field):
         super().__init__(param, optional)
         self.__scope = scope
 
-    def parse_arg(self, arg: str) -> tuple[_T, ...]:
+    def parse_arg(self, arg: str, *args, **kwargs) -> tuple[_T, ...]:
         return tuple(filter(lambda x: re.match(f"^{arg}$", str(x)), self.__scope))
 
     def __str__(self):
@@ -200,9 +202,9 @@ def parse_conditions(value, conditions: list[str]) -> bool:
 class CustomField(Generic[_T], Field):
     MAX_NEST = 2
     __slots__ = ("_param", "__scope", "_optional")
-    __scope: Mapping[str, _T]
+    __scope: Callable[[], Mapping[str, _T]] | Mapping[str, _T]
 
-    def __init__(self, param: str, scope: Mapping[str, _T], optional: bool = False):
+    def __init__(self, param: str, scope: Callable[[], Mapping[str, _T]] | Mapping[str, _T], optional: bool = False):
         """自定义类型参数
 
         :param param: 参数名
@@ -212,13 +214,13 @@ class CustomField(Generic[_T], Field):
         super().__init__(param, optional)
         self.__scope = scope
 
-    def parse_arg(self, arg: str, nested: int = 0) -> tuple[_T, ...] | set[_T]:
+    def parse_arg(self, arg: str, nested: int = 0, *args, **kwargs) -> tuple[_T, ...] | set[_T]:
         try:
             if arg[0] == "@":  # selector
                 selector = orjson.loads(arg[1:])
-                return self.select(selector, nested)
+                return self.select(selector, nested, *args, **kwargs)
             else:
-                return (self.__scope[arg],)
+                return (self.__scope(*args, **kwargs)[arg],) if hasattr(self.__scope, "__call__") else (self.__scope[arg],)
         except orjson.JSONDecodeError as e:
             raise ValueError(f"{arg[1:]!r} is not a valid selector")
         except KeyError as e:
@@ -228,15 +230,15 @@ class CustomField(Generic[_T], Field):
         except ValueError:
             raise
 
-    def select(self, selector, nested: int) -> tuple[_T, ...] | set[_T]:
+    def select(self, selector, nested: int, *args, **kwargs) -> tuple[_T, ...] | set[_T]:
         if nested > self.MAX_NEST:
             raise ValueError("too many nested selectors")
         if isinstance(selector, dict):  # &
             return tuple(
                 filter(
                     lambda x: all([parse_conditions(getattr(x, k), v) if isinstance(v, list) else getattr(x, k) == v for k, v in selector.items() if k[0] != "_"]),
-                    self.__scope.values(),
-                )
+                    self.__scope(*args, **kwargs).values() if hasattr(self.__scope, "__call__") else self.__scope.values(),
+                ),
             )
         elif isinstance(selector, list):  # |
             return set(chain.from_iterable(self.parse_arg(arg, nested + 1) for arg in selector))
@@ -342,6 +344,7 @@ class CommandParser(UserDict):
                     recognized_command_args_len = max_len
                 sim_exec_projection = 1
                 for i in range(recognized_command_args_len):
+                    # the basic command parser does not support *args and **kwargs for the argument parser
                     parsed_arg = recognized_command.params[i].parse_arg(recognized_command_args[i])
                     parsed_args.append(parsed_arg)
                     sim_exec_projection *= len(parsed_arg)
