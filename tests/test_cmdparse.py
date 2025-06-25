@@ -38,7 +38,7 @@ def test():
             StringField("arg1"),
             CollectionField("arg2", (1, 2, 3, 3.14)),
             FloatField("arg3"),
-            CustomField("arg4", {c.name: c for c in [a, b, c, d, e, f]}),
+            CustomField("arg4", lambda: {component.name: component for component in [a, b, c, d, e, f]}),
             JSONStringField("arg5", True),
         ],
         0,
@@ -49,6 +49,8 @@ def test():
     assert run(cmdparser.parse_command("help")) == 1
     assert run(cmdparser.parse_command("help test")) == 1
     assert run(cmdparser.parse_command('test hi 3 -3 c_a {"a":[0,1],"b":[2,3]}', extra_key1="value1", extra_key2=-1)) == 1
+    assert run(cmdparser.parse_command('test hi 3 -3 @{"gender":[">=\\"f\\""]} {"a":[0,1],"b":[2,3]}')) == 6
+    assert run(cmdparser.parse_command('test hi 3 -3 @{"gender":[">=\\"g\\""]} {"a":[0,1],"b":[2,3]}')) == 3
     assert run(cmdparser.parse_command('test "hello world" 3 3.14 @["c_a","c_c","c_c"] {"a": [0, 1], "b": [2, 3]}', extra_key1="value1", extra_key2=-1)) == 2
     assert run(cmdparser.parse_command('test hi 3 3.14 @["@{\\"score\\":[\\"=80\\"]}","@{\\"score\\":[\\"<65\\"],\\"gender\\":\\"f\\"}","@{\\"score\\":[\\"<=64\\"],\\"gender\\":\\"m\\"}"]')) == 2
     assert run(cmdparser.parse_command('test \'\' 3 3.14 @{"score":[">100"],"gender":"f"}')) == 0
