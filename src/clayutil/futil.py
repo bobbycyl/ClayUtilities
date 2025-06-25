@@ -273,7 +273,10 @@ def filelock(index):
             try:
                 return func(*args, **kwargs)
             finally:
-                os.remove(filename)
+                try:
+                    os.remove(filename)
+                except FileNotFoundError:
+                    pass
 
         return wrapper
 
