@@ -113,7 +113,7 @@ class StringField(Field):
     def __init__(self, param: str, optional: bool = False):
         """布尔型参数
 
-        会自动删除首位的英文双引号
+        会自动删除首尾的英文双引号
 
         :param param: 参数名
         :param optional: 是否可选参数
