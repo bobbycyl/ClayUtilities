@@ -1,4 +1,26 @@
+import base64
+
+__all__ = (
+    "base64_encode",
+    "base64_decode",
+    "zh_prettifier",
+)
+
 last_symbols = list("。，！？：；、.,!?:;")
+
+
+def base64_encode(data: bytes, url_safe: bool = False) -> bytes:
+    if url_safe:
+        return base64.urlsafe_b64encode(data)
+    else:
+        return base64.b64encode(data)
+
+
+def base64_decode(data: bytes, url_safe: bool = False) -> bytes:
+    if url_safe:
+        return base64.urlsafe_b64decode(data)
+    else:
+        return base64.b64decode(data)
 
 
 def zh_prettifier(text: str, strip_last_symbol: bool = False) -> str:

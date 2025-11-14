@@ -236,8 +236,8 @@ class CustomField(Generic[_T], Field):
         if isinstance(selector, dict):  # &
             return tuple(
                 filter(
-                    lambda x: all([parse_conditions(getattr(x, k), v) if isinstance(v, list) else getattr(x, k) == v for k, v in selector.items() if k[0] != "_"]),
-                    self.__scope(*args, **kwargs).values() if hasattr(self.__scope, "__call__") else self.__scope.values(),
+                    lambda x: all([(parse_conditions(getattr(x, k), v) if isinstance(v, list) else getattr(x, k) == v) for k, v in selector.items() if k[0] != "_"]),
+                    (self.__scope(*args, **kwargs).values() if hasattr(self.__scope, "__call__") else self.__scope.values()),
                 ),
             )
         elif isinstance(selector, list):  # |

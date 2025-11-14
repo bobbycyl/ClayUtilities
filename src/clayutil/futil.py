@@ -5,14 +5,18 @@ import os
 import re
 import shutil
 import zipfile
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from time import sleep
-from typing import Optional, Union
+from threading import Lock, Timer
+from typing import Callable, Literal, Optional, Union
 from urllib import parse
 
 import aiohttp
 import requests
+from filelock import FileLock
+from watchdog.events import DirMovedEvent, FileMovedEvent, FileSystemEventHandler
+from watchdog.observers import Observer
 
 __all__ = (
     "check_duplicate_filename",
@@ -20,6 +24,7 @@ __all__ = (
     "PropertiesValueError",
     "Properties",
     "Downloader",
+    "FolderMonitor",
     "filelock",
 )
 
@@ -209,7 +214,7 @@ class Downloader(object):
                     test_url = url.replace(old_url, new_url)
                     try:
                         async with aiohttp.ClientSession(trust_env=True) as session:
-                            async with session.get(url, headers=headers, allow_redirects=True) as resp:
+                            async with session.get(test_url, headers=headers, allow_redirects=True) as resp:
                                 code = resp.status
                     except aiohttp.ClientError:
                         continue
@@ -253,30 +258,154 @@ class Downloader(object):
         return renamed_filename
 
 
-def filelock(index):
+class FolderMonitor(object):
+    """
+    A tool for monitoring a folder and executing a function when files change.
+    """
+
+    _thread_pool = ThreadPoolExecutor(max_workers=4)
+
+    def __init__(self, path: str, recursive: bool = True, debounce_time: float = 1.5):
+        if not os.path.isdir(path):
+            raise ValueError("%s not a directory" % path)
+
+        self.path = path
+        self.recursive = recursive
+        self.debounce_time = debounce_time
+
+        self._observer = Observer()
+        self._event_handler = self._create_event_handler()
+        self._running = False
+
+        self._debounce_timers = {}
+        self._debounce_lock = Lock()
+
+        # Event registry
+        # {('event_type', is_directory_tuple_key): [func1, func2, ...]}
+        # is_directory_tuple_key: (True,) for dirs, (False,) for files, (True, False) for both
+        self._handlers = defaultdict(list)
+
+    def on_event(
+        self,
+        event_type: Literal["created", "deleted", "modified", "moved"],
+        is_directory: Optional[bool] = None,
+    ):
+        """Event registry decorator.
+
+        :param event_type: Event type
+        :param is_directory: True for dirs only, False forfiles only, None for both
+        """
+
+        def decorator(func: Callable):
+            # Because Watchdog doesn't support "both", we need to register handlers for both
+            if is_directory is None:
+                dir_keys = (True, False)
+            else:
+                dir_keys = (is_directory,)
+
+            # register handlers for each dir_key
+            for dir_key in dir_keys:
+                handler_key = (event_type, dir_key)
+                self._handlers[handler_key].append(func)
+            return func
+
+        return decorator
+
+    def _create_event_handler(self) -> FileSystemEventHandler:
+        class Handler(FileSystemEventHandler):
+            def __init__(self, monitor_instance: "FolderMonitor"):
+                self.monitor = monitor_instance
+
+            def on_any_event(self, event):
+                # 可以在这里添加一些全局过滤逻辑
+                self.monitor._thread_pool.submit(self.monitor._handle_event_debounced, event)
+
+        return Handler(self)
+
+    def _handle_event_debounced(self, event):
+        event_key = event.src_path
+        with self._debounce_lock:
+            if event_key in self._debounce_timers:
+                self._debounce_timers[event_key].cancel()
+            timer = Timer(self.debounce_time, self._execute_handlers, args=[event])
+            self._debounce_timers[event_key] = timer
+            timer.start()
+
+    def _execute_handlers(self, event):
+        with self._debounce_lock:
+            if event.src_path in self._debounce_timers:
+                del self._debounce_timers[event.src_path]
+
+        handler_key = (event.event_type, event.is_directory)
+
+        # 查找并执行所有匹配的处理器
+        if handler_key not in self._handlers:
+            return
+
+        event_info = self._format_event(event)
+
+        for handler in self._handlers[handler_key]:
+            handler(event_info)
+
+    @staticmethod
+    def _format_event(event) -> dict:
+        event_info = {
+            "event_type": event.event_type,
+            "src_path": event.src_path,
+            "is_directory": event.is_directory,
+        }
+        if isinstance(event, (FileMovedEvent, DirMovedEvent)):
+            event_info["dest_path"] = event.dest_path
+        return event_info
+
+    def start(self):
+        if self._running:
+            raise RuntimeError("monitor already running")
+        self._observer.schedule(self._event_handler, self.path, recursive=self.recursive)
+        self._observer.start()
+        self._running = True
+
+    def stop(self):
+        if not self._running:
+            return
+
+        # 停止 observer
+        self._observer.stop()
+        self._observer.join()
+
+        # 取消所有待处理的防抖 Timer
+        with self._debounce_lock:
+            for timer in self._debounce_timers.values():
+                timer.cancel()
+            self._debounce_timers.clear()
+        self._running = False
+
+    @classmethod
+    def shutdown_thread_pool(cls, wait=True):
+        cls._thread_pool.shutdown(wait=wait)
+
+
+def filelock(index: int = 0):
     """simple file lock
 
-    lock filename based on the specific argument of the function if exists else LCK
+    lock filename based on the specific argument of the function if exists else function name
     """
 
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            if len(args) > 0:
-                filename = "%s.LCK" % args[index]
-            else:
-                filename = "LCK"
-            while os.path.exists(filename):
-                sleep(1)
-            with open(filename, "w"):
-                pass
             try:
+                if args and len(args) > index:
+                    filename = f"{args[index]}.LCK"
+                else:
+                    filename = f"{func.__name__}.LCK"
+            except (IndexError, TypeError) as e:
+                filename = f"{func.__name__}.LCK"
+
+            lock = FileLock(filename, timeout=-1)
+
+            with lock:
                 return func(*args, **kwargs)
-            finally:
-                try:
-                    os.remove(filename)
-                except FileNotFoundError:
-                    pass
 
         return wrapper
 

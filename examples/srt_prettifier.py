@@ -14,6 +14,7 @@ if __name__ == "__main__":
         # 每次读 4 行，对于第 3 行的内容进行 zh_prettifier
         with open("%s_prettifier%s" % os.path.splitext(args.file), "w", encoding="utf-8") as fo:
             for batch in batched(fi, 4):
+                # todo: 自动判断是否是双语字幕，调整batched的参数
                 try:
                     fo.write(batch[0])
                     fo.write(batch[1])
@@ -21,5 +22,3 @@ if __name__ == "__main__":
                     fo.write("\n\n")
                 except IndexError:
                     break
-
-
