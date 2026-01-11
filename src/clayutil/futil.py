@@ -183,10 +183,16 @@ class Downloader(object):
             if check_duplicate:
                 processed_filename = check_duplicate_filename(processed_filename)
 
-            with open(processed_filename, "wb") as fb:
-                shutil.copyfileobj(r.raw, fb)
+            content_type = str(r.headers.get("Content-Type"))
+            if content_type[:5] == "text/":
+                r.encoding = r.apparent_encoding
+                with open(processed_filename, "w", encoding=r.encoding, newline="") as f:
+                    f.write(r.text)
+            else:
+                with open(processed_filename, "wb") as fb:
+                    shutil.copyfileobj(r.raw, fb)
 
-            self.history.append((r.url, processed_filename, int(str(r.headers.get("Content-Length", 0))), str(r.headers.get("Content-Type"))))
+            self.history.append((r.url, processed_filename, int(str(r.headers.get("Content-Length", 0))), content_type))
         return os.path.abspath(processed_filename)
 
     async def async_start(self, url: str, filename: str = "", headers: Optional[dict] = None) -> str:
