@@ -183,16 +183,10 @@ class Downloader(object):
             if check_duplicate:
                 processed_filename = check_duplicate_filename(processed_filename)
 
-            content_type = str(r.headers.get("Content-Type"))
-            if content_type[:5] == "text/":
-                r.encoding = r.apparent_encoding
-                with open(processed_filename, "w", encoding=r.encoding) as f:
-                    f.write(r.text)
-            else:
-                with open(processed_filename, "wb") as fb:
-                    shutil.copyfileobj(r.raw, fb)
+            with open(processed_filename, "wb") as fb:
+                shutil.copyfileobj(r.raw, fb)
 
-            self.history.append((r.url, processed_filename, int(str(r.headers.get("Content-Length", 0))), content_type))
+            self.history.append((r.url, processed_filename, int(str(r.headers.get("Content-Length", 0))), str(r.headers.get("Content-Type"))))
         return os.path.abspath(processed_filename)
 
     async def async_start(self, url: str, filename: str = "", headers: Optional[dict] = None) -> str:
@@ -208,22 +202,21 @@ class Downloader(object):
         if headers is None:
             headers = {"User-Agent": self.CHROME_UA}
 
-        for old_url, new_urls in self.mirrors.items():
-            if old_url in url:
-                for new_url in new_urls:
-                    test_url = url.replace(old_url, new_url)
-                    try:
-                        async with aiohttp.ClientSession(trust_env=True) as session:
+        async with aiohttp.ClientSession(trust_env=True) as session:
+            for old_url, new_urls in self.mirrors.items():
+                if old_url in url:
+                    for new_url in new_urls:
+                        test_url = url.replace(old_url, new_url)
+                        try:
                             async with session.get(test_url, headers=headers, allow_redirects=True) as resp:
                                 code = resp.status
-                    except aiohttp.ClientError:
-                        continue
-                    if code == 200:
-                        url = test_url
-                        break
-                break
+                        except aiohttp.ClientError:
+                            continue
+                        if code == 200:
+                            url = test_url
+                            break
+                    break
 
-        async with aiohttp.ClientSession(trust_env=True) as session:
             async with session.get(url, headers=headers, allow_redirects=True) as resp:
                 content_length = int(str(resp.headers.get("Content-Length", 0)))
                 content_type = str(resp.headers.get("Content-Type"))
