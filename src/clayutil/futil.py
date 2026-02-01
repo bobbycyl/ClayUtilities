@@ -292,7 +292,7 @@ class FolderMonitor(object):
         """Event registry decorator.
 
         :param event_type: Event type
-        :param is_directory: True for dirs only, False forfiles only, None for both
+        :param is_directory: True for dirs only, False for files only, None for both
         """
 
         def decorator(func: Callable):
