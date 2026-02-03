@@ -1,5 +1,4 @@
 import asyncio
-import cgi
 import functools
 import os
 import re
@@ -8,9 +7,9 @@ import zipfile
 from collections import OrderedDict, defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from email.message import EmailMessage
 from threading import Lock, Timer
 from typing import Callable, Literal, Optional, Union
-from urllib import parse
 
 import aiohttp
 import requests
@@ -173,8 +172,10 @@ class Downloader(object):
 
         with requests.get(url, headers=headers, stream=True, allow_redirects=True, proxies=proxies if proxies is not None else {}) as r:
             try:
-                processed_filename = os.path.join(self.__output_dir, parse.unquote(cgi.parse_header(r.headers["content-disposition"])[1]["filename*"]).lstrip("utf-8''"))
-            except KeyError:
+                msg = EmailMessage()
+                msg["Content-Disposition"] = r.headers["content-disposition"]
+                processed_filename = os.path.join(self.__output_dir, msg.get_param("filename*", header="Content-Disposition").strip('"'))
+            except (AttributeError, KeyError):
                 processed_filename = os.path.join(self.__output_dir, os.path.split(r.url)[1].split("?", 1)[0])
 
             if filename:
@@ -228,8 +229,10 @@ class Downloader(object):
                 content_type = str(resp.headers.get("Content-Type"))
                 response_url = str(resp.url)
                 try:
-                    processed_filename = os.path.join(self.__output_dir, parse.unquote(cgi.parse_header(resp.headers["content-disposition"])[1]["filename*"]).lstrip("utf-8''"))
-                except KeyError:
+                    msg = EmailMessage()
+                    msg["Content-Disposition"] = resp.headers["content-disposition"]
+                    processed_filename = os.path.join(self.__output_dir, msg.get_param("filename*", header="Content-Disposition").strip('"'))
+                except (AttributeError, KeyError):
                     processed_filename = os.path.join(self.__output_dir, os.path.split(response_url)[1].split("?", 1)[0])
 
                 async with asyncio.Lock():
