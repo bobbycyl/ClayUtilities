@@ -66,10 +66,11 @@ class Properties(PropertiesOrderedDict):
 
     pattern = re.compile(r"^([^#]+?)=(.+)\n$")
 
-    def __init__(self, filename: str, encoding: str = "utf-8"):
+    def __init__(self, filename: str, encoding: str = "utf-8", infer_integer: bool = True):
         super().__init__()
         self.filename: str = filename
         self.encoding: str = encoding
+        self.infer_integer: bool = infer_integer
         if not os.path.exists(self.filename):
             with open(self.filename, "w", encoding=self.encoding) as pf:
                 pf.write("# %s\n" % datetime.ctime(datetime.now()))
@@ -84,7 +85,7 @@ class Properties(PropertiesOrderedDict):
                     self.__setitem__("#%i" % i, line)
                 else:
                     v: Union[int, bool, str]
-                    if m.group(2).isdigit():
+                    if self.infer_integer and (m.group(2).isdigit() or m.group(2)[:1] == "-" and m.group(2)[1:].isdigit()):
                         v = int(m.group(2))
                     elif m.group(2) == "true":
                         v = True
