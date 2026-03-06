@@ -6,7 +6,7 @@ __all__ = (
     "zh_prettifier",
 )
 
-last_symbols = list("。，！？：；、.,!?:;")
+last_punctuations = list("。，！？：；、.,!?:;")
 
 
 def base64_encode(data: bytes, url_safe: bool = False) -> bytes:
@@ -32,11 +32,11 @@ def is_alpha_number(char: str) -> bool:
     return "a" <= char <= "z" or "A" <= char <= "Z" or "0" <= char <= "9"
 
 
-def zh_prettifier(text: str, strip_last_symbol: bool = False) -> str:
+def zh_prettifier(text: str, strip_last_punctuation: bool = False) -> str:
     """在中文和英文、数字之间添加一个空格，并清除首尾空白
 
     :param text: 待处理文本
-    :param strip_last_symbol: 是否剔除末尾字符
+    :param strip_last_punctuation: 是否剔除末尾标点符号
     :return: 处理后文本（strip 后）
     """
     if not text:
@@ -59,7 +59,7 @@ def zh_prettifier(text: str, strip_last_symbol: bool = False) -> str:
         result.append(current_char)
         prev_char = current_char
 
-    if strip_last_symbol and result and result[-1] in last_symbols:
+    if strip_last_punctuation and result and result[-1] in last_punctuations:
         result.pop()
 
     return "".join(result)
