@@ -224,7 +224,7 @@ class CustomField(Generic[_T], Field):
                 selector = orjson.loads(arg[1:])
                 return self.select(selector, nested, *args, **kwargs)
             else:
-                return (self.__scope(*args, **kwargs)[arg],) if hasattr(self.__scope, "__func__") else (self.__scope[arg],)  # type: ignore
+                return (self.__scope(*args, **kwargs)[arg],) if callable(self.__scope) else (self.__scope[arg],)  # type: ignore
         except orjson.JSONDecodeError:
             raise CommandValueError(f"{arg[1:]!r} is not a valid selector") from None
         except KeyError:
@@ -239,7 +239,7 @@ class CustomField(Generic[_T], Field):
             return tuple(
                 filter(
                     lambda x: all([(parse_conditions(getattr(x, k), v) if isinstance(v, list) else getattr(x, k) == v) for k, v in selector.items() if k[0] != "_"]),
-                    self.__scope(*args, **kwargs).values() if hasattr(self.__scope, "__func__") else self.__scope.values(),  # type: ignore
+                    self.__scope(*args, **kwargs).values() if callable(self.__scope) else self.__scope.values(),  # type: ignore
                 ),
             )
         elif isinstance(selector, list):  # |
@@ -372,5 +372,5 @@ class CommandParser(UserDict):
                 return 'use "help command_name" to show the help page of a command\n%s' % "\n".join(f"{command.name} - {command.description}" for command in self.data.values())
         else:
             if command_name not in self.data:
-                raise CommandValueError(f"unknown command {command_name!r}")
+                raise CommandError(f"unknown command {command_name!r}")
             return str(self.data[command_name])
