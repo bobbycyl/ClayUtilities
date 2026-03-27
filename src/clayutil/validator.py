@@ -134,4 +134,4 @@ class OneOf(Validator):
 
     def validate(self, value):
         if value not in self.options:
-            raise ValidationError(f"expected {value!r} to be one of {'{' + ', '.join(f'{o!r}' for o in self.options.keys()) + '}'}")
+            raise ValidationError(f"expected {value!r} to be one of {'{' + ', '.join(f'{o!r}' for o in self.options) + '}'}")

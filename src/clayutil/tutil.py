@@ -51,10 +51,9 @@ def zh_prettifier(text: str, strip_last_punctuation: bool = False) -> str:
         current_char = text[i]
 
         # 检查是否需要添加空格
-        if (is_cjk(prev_char) and is_alpha_number(current_char)) or (is_cjk(current_char) and is_alpha_number(prev_char)):
-            # 确保前一个字符后没有空格（避免重复添加）
-            if result[-1] != " ":
-                result.append(" ")
+        # 确保前一个字符后没有空格（避免重复添加）
+        if (is_cjk(prev_char) and is_alpha_number(current_char)) or (is_cjk(current_char) and is_alpha_number(prev_char)) and result[-1] != " ":
+            result.append(" ")
 
         result.append(current_char)
         prev_char = current_char

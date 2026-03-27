@@ -1,3 +1,4 @@
+# ruff: disable[F403, F405]
 import re
 
 import pytest

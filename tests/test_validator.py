@@ -20,7 +20,7 @@ class Component(object):
 
 
 def test():
-    c = Component(
+    _c = Component(
         "john.doe",
         "f",
         80,

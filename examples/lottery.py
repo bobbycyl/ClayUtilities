@@ -14,7 +14,7 @@ class Lottery(object):
             self.max = 0
         self.times = times
         self.p["paid"] = self.p.get("paid", 0)
-        self.paid = self.p.pop("paid")
+        self.paid: int = int(self.p.pop("paid"))
         self.main()
 
     def main(self):
@@ -32,7 +32,7 @@ class Lottery(object):
         if cumulative_probability != 1:
             raise ValueError("cumulative probability is %f, but 1.0 required" % cumulative_probability)
         print(prizes_distribution)
-        for i in range(args.times):
+        for _ in range(args.times):
             self.paid += 1
             if self.paid == self.max:
                 r = 0.0

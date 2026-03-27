@@ -31,3 +31,21 @@ classifiers = [
 [project.urls]
 Repository = "https://github.com/bobbycyl/ClayUtilities.git"
 "Bug Tracker" = "https://github.com/bobbycyl/ClayUtilities/issues"
+
+[tool.ruff]
+line-length = 255
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+]
+ignore = [
+    "E501"
+]

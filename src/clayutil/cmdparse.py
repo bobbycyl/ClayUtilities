@@ -49,7 +49,7 @@ class Field(ABC):
         self.optional = optional
 
     @abstractmethod
-    def parse_arg(self, arg: str, *args, **kwargs) -> Collection:
+    def parse_arg(self, arg: str, nested: int = 0, *args, **kwargs) -> Collection:
         raise NotImplementedError
 
     def __str__(self):
@@ -206,7 +206,7 @@ def parse_conditions(value, conditions: list[str]) -> bool:
 class CustomField(Generic[_T], Field):
     MAX_NEST = 2
     __slots__ = ("_param", "__scope", "_optional")
-    __scope: Callable[[], Mapping[str, _T]] | Mapping[str, _T]
+    __scope: Callable[..., Mapping[str, _T]] | Mapping[str, _T]
 
     def __init__(self, param: str, scope: Callable[[], Mapping[str, _T]] | Mapping[str, _T], optional: bool = False):
         """自定义类型参数
@@ -224,7 +224,7 @@ class CustomField(Generic[_T], Field):
                 selector = orjson.loads(arg[1:])
                 return self.select(selector, nested, *args, **kwargs)
             else:
-                return (self.__scope(*args, **kwargs)[arg],) if hasattr(self.__scope, "__call__") else (self.__scope[arg],)
+                return (self.__scope(*args, **kwargs)[arg],) if hasattr(self.__scope, "__func__") else (self.__scope[arg],)  # type: ignore
         except orjson.JSONDecodeError:
             raise CommandValueError(f"{arg[1:]!r} is not a valid selector") from None
         except KeyError:
@@ -239,11 +239,11 @@ class CustomField(Generic[_T], Field):
             return tuple(
                 filter(
                     lambda x: all([(parse_conditions(getattr(x, k), v) if isinstance(v, list) else getattr(x, k) == v) for k, v in selector.items() if k[0] != "_"]),
-                    (self.__scope(*args, **kwargs).values() if hasattr(self.__scope, "__call__") else self.__scope.values()),
+                    self.__scope(*args, **kwargs).values() if hasattr(self.__scope, "__func__") else self.__scope.values(),  # type: ignore
                 ),
             )
         elif isinstance(selector, list):  # |
-            return set(chain.from_iterable(self.parse_arg(arg, nested + 1) for arg in selector))
+            return set(chain.from_iterable(self.parse_arg(arg, nested + 1, *args, **kwargs) for arg in selector))
         else:
             raise CommandValueError(f"{selector!r} is not a valid selector")
 
@@ -354,11 +354,11 @@ class CommandParser(UserDict):
                         raise CommandValueError(f"too many possible simultaneous executions: {sim_exec_projection} > {self.MAX_SIM_EXEC}")
         except CommandValueError as e:
             raise CommandError(f"failed to parse {command_text!r}: {e}") from e
-        except Exception:
-            raise CommandError(f"failed to parse {command_text!r}")
+        except Exception as e:
+            raise CommandError(f"failed to parse {command_text!r}") from e
         for args in product(*parsed_args):
             if hasattr(recognized_command.func, "__func__") and hasattr(recognized_command.func, "__self__"):  # method
-                yield recognized_command.func.__func__(recognized_command.func.__self__, *args, **kwargs)
+                yield recognized_command.func.__func__(recognized_command.func.__self__, *args, **kwargs)  # type: ignore
             else:
                 yield recognized_command.func(*args, **kwargs)
             exec_counter += 1

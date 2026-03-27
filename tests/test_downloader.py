@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import os
 import time
 
@@ -12,10 +13,8 @@ from clayutil.sutil import md5sum
 def clean_tmp_files():
     yield
     for filename in ["./ArchLinuxCN_lastupdate", "./ArchLinuxCN_lastupdate (1)", "./Ventoy_v1.0.97.sha256", "./Ventoy_v1.0.97 (1).sha256", "TRUE - Storyteller (IOException) [Expert].osu", "3477131.osu", "3477131"]:
-        try:
+        with contextlib.suppress(FileNotFoundError):
             os.remove(filename)
-        except FileNotFoundError:
-            pass
 
 
 def test(clean_tmp_files):

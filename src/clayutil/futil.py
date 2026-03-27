@@ -8,6 +8,7 @@ from collections import OrderedDict, defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from email.message import EmailMessage
+from email.utils import collapse_rfc2231_value
 from threading import Lock, Timer
 from typing import Callable, Literal, Optional, Union
 
@@ -43,7 +44,7 @@ def check_duplicate_filename(filename: str, pattern_string: str = r" \({n}\)") -
 
 def compress_as_zip(path: str, zip_filename: str) -> None:
     with zipfile.ZipFile(zip_filename, "w", zipfile.ZIP_DEFLATED) as zipf:
-        for root, dirs, files in os.walk(path):
+        for root, _dirs, files in os.walk(path):
             relpath = os.path.relpath(root, path)
             for filename in files:
                 zipf.write(os.path.join(root, filename), os.path.join(relpath, filename))
@@ -102,10 +103,7 @@ class Properties(PropertiesOrderedDict):
                     pf.write("%s" % value)
                 else:
                     if isinstance(value, bool):
-                        if value:
-                            value = "true"
-                        else:
-                            value = "false"
+                        value = "true" if value else "false"
                     pf.write("%s=%s\n" % (key, value))
 
 
@@ -175,7 +173,10 @@ class Downloader(object):
             try:
                 msg = EmailMessage()
                 msg["Content-Disposition"] = r.headers["content-disposition"]
-                processed_filename = os.path.join(self.__output_dir, msg.get_param("filename*", header="Content-Disposition").strip('"'))
+                _raw_param = msg.get_param("filename*", header="Content-Disposition")
+                if _raw_param is None:
+                    raise KeyError
+                processed_filename = os.path.join(self.__output_dir, collapse_rfc2231_value(_raw_param).strip('"'))
             except (AttributeError, KeyError):
                 processed_filename = os.path.join(self.__output_dir, os.path.split(r.url)[1].split("?", 1)[0])
 
@@ -232,7 +233,10 @@ class Downloader(object):
                 try:
                     msg = EmailMessage()
                     msg["Content-Disposition"] = resp.headers["content-disposition"]
-                    processed_filename = os.path.join(self.__output_dir, msg.get_param("filename*", header="Content-Disposition").strip('"'))
+                    _raw_param = msg.get_param("filename*", header="Content-Disposition")
+                    if _raw_param is None:
+                        raise KeyError
+                    processed_filename = os.path.join(self.__output_dir, collapse_rfc2231_value(_raw_param).strip('"'))
                 except (AttributeError, KeyError):
                     processed_filename = os.path.join(self.__output_dir, os.path.split(response_url)[1].split("?", 1)[0])
 
@@ -251,13 +255,14 @@ class Downloader(object):
         return os.path.abspath(processed_filename)
 
     def __rename(self, old_filename: str, new_filename: str) -> str:
-        if os.path.splitext(new_filename)[1] == "":
-            renamed_filename = os.path.join(
+        renamed_filename = (
+            os.path.join(
                 self.__output_dir,
                 "%s%s" % (new_filename, os.path.splitext(old_filename)[1]),
             )
-        else:
-            renamed_filename = os.path.join(self.__output_dir, new_filename)
+            if os.path.splitext(new_filename)[1] == ""
+            else os.path.join(self.__output_dir, new_filename)
+        )
         return renamed_filename
 
 
@@ -301,10 +306,7 @@ class FolderMonitor(object):
 
         def decorator(func: Callable):
             # Because Watchdog doesn't support "both", we need to register handlers for both
-            if is_directory is None:
-                dir_keys = (True, False)
-            else:
-                dir_keys = (is_directory,)
+            dir_keys = (True, False) if is_directory is None else (is_directory,)
 
             # register handlers for each dir_key
             for dir_key in dir_keys:
@@ -398,11 +400,8 @@ def filelock(index: int = 0):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             try:
-                if args and len(args) > index:
-                    filename = f"{args[index]}.LCK"
-                else:
-                    filename = f"{func.__name__}.LCK"
-            except (IndexError, TypeError) as e:
+                filename = f"{args[index]}.LCK" if args and len(args) > index else f"{func.__name__}.LCK"
+            except (IndexError, TypeError):
                 filename = f"{func.__name__}.LCK"
 
             lock = FileLock(filename, timeout=-1)
