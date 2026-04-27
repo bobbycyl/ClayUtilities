@@ -86,7 +86,7 @@ class Properties(PropertiesOrderedDict):
                     self.__setitem__("#%i" % i, line)
                 else:
                     v: Union[int, bool, str]
-                    if self.infer_integer and (m.group(2).isdigit() or m.group(2)[:1] == "-" and m.group(2)[1:].isdigit()):
+                    if self.infer_integer and (m.group(2).isdecimal() or m.group(2)[:1] == "-" and m.group(2)[1:].isdecimal()):
                         v = int(m.group(2))
                     elif m.group(2) == "true":
                         v = True
