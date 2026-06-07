@@ -6,6 +6,8 @@ __all__ = (
     "zh_prettifier",
 )
 
+import re
+
 last_punctuations = list("。，！？：；、.,!?:;")
 
 
@@ -21,6 +23,11 @@ def base64_decode(data: bytes, url_safe: bool = False) -> bytes:
         return base64.urlsafe_b64decode(data)
     else:
         return base64.b64decode(data)
+
+
+def sort_text(text: str, split_char: str = "\n", regex: bool = False) -> str:
+    l = re.split(split_char, text) if regex else text.split(split_char)
+    return split_char.join(sorted(l))
 
 
 def is_cjk(char: str) -> bool:
