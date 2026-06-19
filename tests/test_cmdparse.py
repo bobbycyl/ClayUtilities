@@ -2,9 +2,9 @@
 import re
 
 import pytest
+from test_validator import Component
 
 from clayutil.cmdparse import *
-from test_validator import Component
 
 
 def func(*args, **kwargs):
