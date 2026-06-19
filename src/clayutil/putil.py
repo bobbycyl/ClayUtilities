@@ -6,7 +6,7 @@ import time
 from collections.abc import Callable, Generator
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Optional, TypeAlias
+from typing import Any, Optional, TypeAlias
 
 import orjson
 
@@ -120,7 +120,7 @@ class BatchProcessor(object):
         ```
         """
 
-        def decorator(gen_func: Callable[..., Generator]) -> Callable[..., Generator]:
+        def decorator(gen_func: Callable[..., Generator[dict[str, Any]]]) -> Callable[..., Generator[dict[str, Any]]]:
             task_name = getattr(task_func, "__name__", str(task_func))
             if task_name not in self._tasks:
                 raise ValueError(f"任务 '{task_name}' 尚未注册")
