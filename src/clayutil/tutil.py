@@ -8,6 +8,7 @@ __all__ = (
     "zh_prettifier",
     "zh_clean_spaces",
     "zh_is_garbled",
+    "merge_lines_by_punct",
 )
 
 WEB_STOP_TERMS = [
@@ -124,7 +125,7 @@ def zh_prettifier(text: str, strip_end_punct: bool = False) -> str:
 
 
 def zh_clean_spaces(text: str) -> str:
-    """"""
+    """清理中文之间的多余空格"""
     # 汉字
     han = r"\u4e00-\u9fff\u3400-\u4dbf\U00020000-\U0002a6df\uf900-\ufaff"
     # 中文标点
@@ -177,6 +178,7 @@ def _analyze(text: str) -> tuple[dict[str, int], int]:
 
 
 def zh_is_garbled(text: str, pdf_page_mode: bool = False) -> tuple[bool, str]:
+    """判断一段中文是否为乱码"""
     counts, non_sp = _analyze(text)
 
     if non_sp == 0:
@@ -268,6 +270,7 @@ def zh_is_title_line(line: str):
 
 
 def merge_lines_by_punct(lines):
+    """快速规整段落"""
     if not lines:
         return []
 
