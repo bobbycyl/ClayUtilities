@@ -1,6 +1,10 @@
+import contextlib
+import ctypes
+import inspect
 import json
 import logging
 import os
+import sys
 import threading
 import time
 from collections.abc import Callable, Generator
@@ -13,7 +17,7 @@ import orjson
 WorkerReturn: TypeAlias = tuple[int, int, bool]
 
 
-__all__ = ("BatchProcessor",)
+__all__ = ("BatchProcessor", "LifetimeError", "LifetimeScope")
 
 
 @dataclass
@@ -312,3 +316,69 @@ class BatchProcessor(object):
                 self._checkpoint_data = {}
             self._save_checkpoint()
         self.logger.info(f"已清除断点记录 ({task_name=})")
+
+
+class LifetimeError(NameError):
+    pass
+
+
+class BuriedVariable(object):
+    def __init__(self, name):
+        object.__setattr__(self, "name", name)
+
+    def __getattribute__(self, item):
+        raise LifetimeError(f"cannot access dead variable {(object.__getattribute__(self, 'name'))!r}")
+
+    def __repr__(self):
+        raise LifetimeError(f"cannot access dead variable {self.name!r}")
+
+    def __setattr__(self, key, value):
+        raise LifetimeError(f"cannot access dead variable {self.name!r}")
+
+    __str__ = __repr__
+
+
+class LifetimeScope(object):
+    """简易变量生命周期"""
+
+    def __init__(self, *args, label="", print_result=False):
+        """简易变量生命周期
+
+        :param args: 预定义生命周期变量名
+        :param label: 生命周期标签名
+        :param print_result: 是否打印销毁结果
+        """
+        self.label = label
+        self.print_result = print_result
+        self._unbind = set(args)
+        self._caller_frame = None
+
+    def track(self, name, value=None):
+        if name in self._unbind:
+            raise ValueError(f"variable name {name!r} already tracked")
+        self._unbind.add(name)
+        return value
+
+    def __enter__(self):
+        self._caller_frame = sys._getframe(1)
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        caller_frame = self._caller_frame
+        current_locals = caller_frame.f_locals
+
+        buried = []
+        for var in self._unbind:
+            if var in current_locals:
+                # del current_locals[var]
+                current_locals[var] = BuriedVariable(var)
+                buried.append(var)
+
+        with contextlib.suppress(Exception):
+            ctypes.pythonapi.PyFrame_LocalsToFast(ctypes.py_object(caller_frame), ctypes.c_int(1))
+
+        if self.print_result:
+            label_str = f"({self.label})" if self.label else ""
+            print(f"  [scope{label_str}]: unbound {', '.join(buried)}")
+
+        return False
